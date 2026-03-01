@@ -464,10 +464,9 @@ async function init() {
   }
 }
 
-async function apiFetch(url, opts) {
-  // GAS ต้องการ mode:'cors' และไม่ต้องใส่ Content-Type สำหรับ GET
-  const fetchOpts = opts ? { ...opts } : {};
-  const res  = await fetch(url, fetchOpts);
+// GET fetch สำหรับ check_admin และ get_checkpoints
+async function apiFetch(url) {
+  const res  = await fetch(url, { redirect: 'follow' });
   const text = await res.text();
   try { return JSON.parse(text); }
   catch(_) { throw new Error('ตอบกลับไม่ใช่ JSON: ' + text.substring(0, 80)); }
@@ -922,51 +921,27 @@ function goConfirm() {
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT — แยกส่งข้อมูลและรูปภาพ (แก้ Load failed)
+// SUBMIT — ใช้ fetch() GET เท่านั้น (proven ใช้งานได้บน iOS LINE)
+// fetch() GET ไม่มี CORS preflight + follow redirect อัตโนมัติ
+// รูปภาพบีบอัดแล้วส่งแยกเป็น GET อีก request
 // ════════════════════════════════════════════════════
 
-// ── POST ไปยัง GAS โดยหลีกเลี่ยง CORS preflight ──────────────────────────────
-// วิธีที่ใช้งานได้จริงกับ GAS: ส่ง JSON เป็น field "payload" แบบ form-urlencoded
-// GAS doPost อ่านได้จาก e.parameter.payload หรือ e.postData.contents
-async function postWithRetry(payload, maxRetry = 2) {
-  let lastErr;
-  for (let attempt = 0; attempt <= maxRetry; attempt++) {
-    try {
-      const ctrl    = new AbortController();
-      const tid     = setTimeout(() => ctrl.abort(), 45000); // 45s timeout
-
-      // ใช้ FormData — ไม่ trigger preflight OPTIONS บน GAS
-      const form = new FormData();
-      form.append('payload', JSON.stringify(payload));
-
-      const res = await fetch(GAS_URL, {
-        method: 'POST',
-        body:   form,
-        signal: ctrl.signal,
-        redirect: 'follow',   // GAS redirect 302 ต้องให้ follow
-      });
-      clearTimeout(tid);
-
-      const text = await res.text();
-      try {
-        return JSON.parse(text);
-      } catch(_) {
-        // GAS บางครั้ง redirect แล้วตอบ HTML — ลอง parse หา JSON ใน body
-        const match = text.match(/\{[\s\S]*\}/);
-        if (match) return JSON.parse(match[0]);
-        throw new Error('ตอบกลับผิดรูปแบบ: ' + text.substring(0, 120));
-      }
-    } catch(e) {
-      lastErr = e;
-      if (e.name === 'AbortError') {
-        lastErr = new Error('หมดเวลาเชื่อมต่อ (45s) — เน็ตช้าหรือรูปใหญ่เกิน');
-      }
-      if (attempt < maxRetry) {
-        await new Promise(r => setTimeout(r, 2500 * (attempt + 1)));
-      }
-    }
+// fetch GET ไปยัง GAS — เหมือน apiFetch แต่รับ params object
+async function gasCall(params, timeoutMs = 40000) {
+  const url  = GAS_URL + '?' + new URLSearchParams(params).toString();
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res  = await fetch(url, { redirect: 'follow', signal: ctrl.signal });
+    const text = await res.text();
+    clearTimeout(tid);
+    try { return JSON.parse(text); }
+    catch(_) { throw new Error('ตอบกลับผิดรูปแบบ: ' + text.substring(0, 100)); }
+  } catch(e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('หมดเวลาเชื่อมต่อ (40s)');
+    throw e;
   }
-  throw lastErr;
 }
 
 async function submitCheck() {
@@ -982,9 +957,9 @@ async function submitCheck() {
   const timestamp = new Date().toISOString();
 
   try {
-    // ── ขั้นตอนที่ 1: ส่งข้อมูลหลักพร้อมรูป ──────────────────
-    btn.textContent = '⏳ กำลังส่งข้อมูล... (1/1)';
-    const payload = {
+    // ══ Step 1: บันทึกข้อมูลหลัก (ไม่มีรูป) ════════════════
+    btn.textContent = '⏳ กำลังบันทึก... (1/2)';
+    const res = await gasCall({
       action:         'guard_checkin',
       tourId:         S.tourId,
       userId:         S.userId,
@@ -992,42 +967,43 @@ async function submitCheck() {
       checkpointId:   S.cpId,
       checkpointName: S.cpName,
       status:         S.status,
-      notes,
-      imageBase64:    S.photoBase64,
-      imageMime:      S.photoMime || 'image/jpeg',
-      timestamp,
-      tourStartTime:  S.tourStart,
-      gpsLat:         S.gpsLat,
-      gpsLng:         S.gpsLng,
-    };
+      notes:          notes,
+      timestamp:      timestamp,
+      tourStartTime:  S.tourStart  || '',
+      gpsLat:         S.gpsLat    != null ? String(S.gpsLat)  : '',
+      gpsLng:         S.gpsLng    != null ? String(S.gpsLng)  : '',
+      hasPhoto:       S.photoBase64 ? '1' : '0',
+    });
 
-    let res = await postWithRetry(payload, 2);
-
-    // ── ถ้า payload ใหญ่เกิน → ลองส่งโดยไม่มีรูป (fallback) ──
     if (!res || res.status !== 'ok') {
-      const errMsg = (res && res.message) || '';
-      const isPayloadErr = errMsg.toLowerCase().includes('payload') ||
-                           errMsg.toLowerCase().includes('load') ||
-                           errMsg.toLowerCase().includes('size') ||
-                           errMsg.toLowerCase().includes('large');
+      throw new Error(res?.message || 'บันทึกข้อมูลไม่สำเร็จ');
+    }
 
-      if (isPayloadErr && S.photoBase64) {
-        setSbar('sbar2', 'warning', '⚠️ รูปใหญ่เกิน กำลังลองส่งโดยไม่มีรูป...');
-        btn.textContent = '⏳ กำลังส่งใหม่ (ไม่มีรูป)...';
-        await new Promise(r => setTimeout(r, 1000));
-
-        const payloadNoPhoto = { ...payload, imageBase64: null, imageMime: null };
-        res = await postWithRetry(payloadNoPhoto, 1);
-        if (res && res.status === 'ok') {
-          setSbar('sbar2', 'warning', '⚠️ บันทึกสำเร็จ แต่ไม่ได้แนบรูป (รูปใหญ่เกินไป ถ่ายในพื้นที่แสงน้อยได้รูปเล็กกว่า)');
+    // ══ Step 2: ส่งรูปแยก ════════════════════════════════════
+    if (S.photoBase64) {
+      btn.textContent = '⏳ กำลังส่งรูป... (2/2)';
+      try {
+        // รูปอาจยาวเกิน URL limit → บีบให้ขนาดเล็กสุดก่อนส่ง
+        let b64 = S.photoBase64;
+        // ถ้ายาวเกิน 250KB หลัง encode → resize ลงอีก
+        if (b64.length > 250000) {
+          b64 = await recompressPhoto(b64, 400, 0.45);
         }
+        await gasCall({
+          action:       'upload_photo',
+          tourId:       S.tourId,
+          checkpointId: S.cpId,
+          timestamp:    timestamp,
+          imageBase64:  b64,
+          imageMime:    'image/jpeg',
+        }, 50000);
+      } catch(photoErr) {
+        // รูปส่งไม่ได้ไม่ถือว่า fatal — ข้อมูลบันทึกแล้ว
+        console.warn('photo upload failed (non-fatal):', photoErr.message);
       }
     }
 
-    if (!res || res.status !== 'ok') {
-      throw new Error(res?.message || 'บันทึกไม่สำเร็จ กรุณาลองใหม่');
-    }
-
+    // ══ สำเร็จ ══════════════════════════════════════════════
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
 
@@ -1041,17 +1017,33 @@ async function submitCheck() {
     show('ov-ok');
 
   } catch(e) {
-    let msg = e.message || 'ไม่ทราบสาเหตุ';
-    // แปล error message ภาษาอังกฤษให้เข้าใจง่ายขึ้น
-    if (msg.includes('abort') || msg.includes('timeout')) msg = 'หมดเวลาเชื่อมต่อ (timeout) — เน็ตช้าหรือรูปใหญ่เกิน';
-    if (msg.includes('Failed to fetch') || msg.includes('Load failed')) msg = 'เชื่อมต่อไม่ได้ — ตรวจสอบสัญญาณอินเทอร์เน็ต';
-    if (msg.includes('NetworkError')) msg = 'สัญญาณอินเทอร์เน็ตขาดหาย';
-    setSbar('sbar2', 'error', `❌ ${msg}`);
+    setSbar('sbar2', 'error', `❌ บันทึกไม่สำเร็จ: ${e.message}\nกรุณากดบันทึกอีกครั้ง`);
     btn.disabled    = false;
     btn.textContent = '📦 บันทึกการตรวจ';
   } finally {
     S.submitting = false;
   }
+}
+
+// บีบรูปให้เล็กลงอีก สำหรับส่งผ่าน GET URL
+function recompressPhoto(base64, maxPx, quality) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w >= h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else        { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = c.toDataURL('image/jpeg', quality);
+      resolve(dataUrl.split(',')[1]);
+    };
+    img.onerror = () => resolve(base64); // fallback: ส่งของเดิม
+    img.src = 'data:image/jpeg;base64,' + base64;
+  });
 }
 
 function afterSuccess() {
@@ -1082,26 +1074,24 @@ function endTourManual() {
 async function triggerTourComplete() {
   stopGPS();
   try {
-    await apiFetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:        'guard_tour_complete',
-        tourId:        S.tourId,
-        userId:        S.userId,
-        guardName:     S.userName,
-        tourStartTime: S.tourStart,
-        tourEndTime:   new Date().toISOString(),
-        summary: Object.entries(S.checked).map(([id, v]) => ({
-          checkpointId:   id,
-          checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
-          status:         v.status,
-          notes:          v.notes,
-          timestamp:      v.timestamp,
-        })),
-      }),
-    });
-  } catch(_) {/* ล้มเหลวก็ไม่เป็นไร — แสดงหน้าจบรอบ */}
+    const summary = Object.entries(S.checked).map(([id, v]) => ({
+      checkpointId:   id,
+      checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
+      status:         v.status,
+      notes:          v.notes,
+      timestamp:      v.timestamp,
+    }));
+    const tourData = {
+      action:        'guard_tour_complete',
+      tourId:        S.tourId,
+      userId:        S.userId,
+      guardName:     S.userName,
+      tourStartTime: S.tourStart,
+      tourEndTime:   new Date().toISOString(),
+      data:          JSON.stringify({ summary }),
+    };
+    await gasCall(tourData);
+  } catch(_) {/* ล้มเหลวก็ไม่เป็นไร */}
 
   const done     = Object.keys(S.checked).length;
   const total    = CHECKPOINTS.length;
