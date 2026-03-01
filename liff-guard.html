@@ -911,10 +911,10 @@ function goConfirm() {
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT — [FIX v2.1]
-// Step 1: GET guard_checkin (ไม่มีรูป) — เร็ว, ไม่ติด URL limit
-// Step 2: POST upload_photo JSON body — รองรับรูปขนาดใหญ่
-// Step 3: GET guard_tour_complete พร้อม summary JSON
+// SUBMIT — v2.2
+// Step 1: GET guard_checkin (ข้อมูลจุดตรวจ ไม่มีรูป)
+// Step 2: POST upload_photo (JSON body — ไม่ติด URL limit)
+// Step 3: GET guard_tour_complete ทันทีทุกจุด (ไม่ต้องรอครบ)
 // ════════════════════════════════════════════════════
 async function submitCheck() {
   if (S.submitting) return;
@@ -929,8 +929,8 @@ async function submitCheck() {
   const timestamp = new Date().toISOString();
 
   try {
-    // ══ Step 1: บันทึกข้อมูลหลักผ่าน GET (ไม่มีรูป) ══════════════
-    btn.textContent = '⏳ กำลังบันทึก... (1/2)';
+    // ══ Step 1: บันทึกข้อมูลหลักผ่าน GET ════════════════════════
+    btn.textContent = '⏳ บันทึกข้อมูล... (1/3)';
     const res = await gasGetCall({
       action:         'guard_checkin',
       tourId:         S.tourId,
@@ -952,9 +952,8 @@ async function submitCheck() {
 
     // ══ Step 2: ส่งรูปผ่าน POST JSON ════════════════════════════
     if (S.photoBase64) {
-      btn.textContent = '⏳ กำลังส่งรูป... (2/2)';
+      btn.textContent = '⏳ ส่งรูปภาพ... (2/3)';
       try {
-        // [FIX] ใช้ POST JSON — ไม่มี URL length limit, ไม่ต้อง recompress
         await gasPostCall({
           action:       'upload_photo',
           tourId:       S.tourId,
@@ -964,15 +963,19 @@ async function submitCheck() {
           imageMime:    S.photoMime || 'image/jpeg',
         }, 60000);
       } catch(photoErr) {
-        // รูปส่งไม่ได้ไม่ถือว่า fatal — ข้อมูลบันทึกแล้ว
         console.warn('photo upload failed (non-fatal):', photoErr.message);
       }
     }
 
-    // ══ สำเร็จ ══════════════════════════════════════════════════
+    // ══ บันทึก state ══════════════════════════════════════════
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
 
+    // ══ Step 3: ส่งสรุปรอบตรวจทันที (ทีละจุด ไม่ต้องรอครบ) ══
+    btn.textContent = '⏳ ส่งรายงาน... (3/3)';
+    await sendTourSummaryNow();
+
+    // ══ แสดงผลสำเร็จ ════════════════════════════════════════
     const done      = Object.keys(S.checked).length;
     const total     = CHECKPOINTS.length;
     const remaining = total - done;
@@ -991,9 +994,34 @@ async function submitCheck() {
   }
 }
 
+// [v2.2] ส่งสรุปทีละจุด ทันทีหลัง checkin สำเร็จแต่ละครั้ง
+async function sendTourSummaryNow() {
+  try {
+    const summary = Object.entries(S.checked).map(([id, v]) => ({
+      checkpointId:   id,
+      checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
+      status:         v.status,
+      notes:          v.notes || '',
+      timestamp:      v.timestamp,
+    }));
+    await gasGetCall({
+      action:        'guard_tour_complete',
+      tourId:        S.tourId        || '',
+      userId:        S.userId        || '',
+      guardName:     S.userName      || '',
+      tourStartTime: S.tourStart     || '',
+      tourEndTime:   new Date().toISOString(),
+      summary:       JSON.stringify(summary),
+    }, 30000);
+  } catch(e) {
+    console.warn('sendTourSummaryNow failed (non-fatal):', e.message);
+  }
+}
+
 function afterSuccess() {
   hideOv('ov-ok');
-  if (CHECKPOINTS.every(cp => S.checked[cp.id])) { triggerTourComplete(); return; }
+  // [v2.2] กลับหน้า home เสมอ — สรุปส่งไปแล้วทีละจุดใน submitCheck
+  // ถ้าครบทุกจุดแสดงปุ่ม "จบรอบ" ใน renderHome แทน
   renderHome();
 }
 
@@ -1011,29 +1039,11 @@ function endTourManual() {
   triggerTourComplete();
 }
 
-// [FIX v2.1] ส่ง summary เป็น GET พร้อม JSON string — GAS แกะได้ถูกต้อง
+// [v2.2] triggerTourComplete: ส่งสรุปรอบสุดท้าย แล้วแสดงหน้า done
+// (ปกติสรุปถูกส่งทีละจุดใน submitCheck แล้ว — ฟังก์ชันนี้ใช้เมื่อกดปุ่ม "จบรอบ" เท่านั้น)
 async function triggerTourComplete() {
   stopGPS();
-  try {
-    const summary = Object.entries(S.checked).map(([id, v]) => ({
-      checkpointId:   id,
-      checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
-      status:         v.status,
-      notes:          v.notes || '',
-      timestamp:      v.timestamp,
-    }));
-
-    // [FIX] ส่ง summary เป็น JSON string ใน GET param (ไม่มีรูป ขนาดเล็ก)
-    await gasGetCall({
-      action:        'guard_tour_complete',
-      tourId:        S.tourId        || '',
-      userId:        S.userId        || '',
-      guardName:     S.userName      || '',
-      tourStartTime: S.tourStart     || '',
-      tourEndTime:   new Date().toISOString(),
-      summary:       JSON.stringify(summary),
-    }, 30000);
-  } catch(_) {/* ล้มเหลวก็ไม่เป็นไร */}
+  await sendTourSummaryNow(); // ส่งสรุปล่าสุดอีกครั้งในฐานะ "รอบสมบูรณ์"
 
   const done     = Object.keys(S.checked).length;
   const total    = CHECKPOINTS.length;
