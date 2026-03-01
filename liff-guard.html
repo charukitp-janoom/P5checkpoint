@@ -52,14 +52,12 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min
 .dot.done{background:var(--green);border-color:var(--green)}
 .dot.abnormal{background:var(--red);border-color:var(--red)}
 
-/* GPS badge on card header */
 .gps-badge{margin-left:auto;font-size:11px;padding:3px 10px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-weight:600;flex-shrink:0}
 .gps-badge.checking{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--blue)}
 .gps-badge.ok{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:var(--green)}
 .gps-badge.fail{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:var(--red)}
 .gps-badge.na{background:var(--surface3);border:1px solid var(--border2);color:var(--muted)}
 
-/* GPS info bar */
 .gps-info{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;font-size:13px;margin-bottom:4px}
 .gps-info.hidden{display:none}
 .gps-info.checking{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);color:var(--blue)}
@@ -105,7 +103,6 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min
 .qr-ok-sub{font-size:11px;color:var(--muted);margin-top:2px}
 .qr-rescan{margin-left:auto;font-size:12px;color:var(--amber);text-decoration:underline;cursor:pointer;flex-shrink:0}
 
-/* Photo zone — ปิด album, เปิดกล้องสดเท่านั้น */
 .photo-zone{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 16px;background:var(--surface2);border:2px dashed var(--border2);border-radius:14px;cursor:pointer;position:relative;overflow:hidden;transition:all .2s}
 .photo-zone.locked{cursor:not-allowed;opacity:.45;border-color:var(--border)}
 .photo-zone.has-photo{border-style:solid;border-color:rgba(245,158,11,.4);padding:0;background:#000}
@@ -114,7 +111,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min
 .photo-zone-title{font-size:15px;font-weight:700}
 .photo-zone-sub{font-size:12px;color:var(--muted);text-align:center;line-height:1.6}
 .photo-retake{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;padding:5px 10px;border-radius:20px;backdrop-filter:blur(4px);cursor:pointer;border:1px solid rgba(255,255,255,.2)}
-/* input ไม่มี capture จะเปิด dialog เลือก — ต้องใช้ capture=environment บังคับกล้อง */
+/* input needs accept="image/*" for better device compatibility */
 input[type=file]{display:none}
 
 .status-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -166,8 +163,8 @@ textarea.required{border-color:rgba(239,68,68,.5)}
 <!-- loading -->
 <div class="ov" id="ov-load">
   <div class="spinner"></div>
-  <div class="ov-title amber">กำลังโหลด...</div>
-  <div class="ov-sub">กรุณารอสักครู่</div>
+  <div class="ov-title amber" id="load-title">กำลังโหลด...</div>
+  <div class="ov-sub" id="load-sub">กรุณารอสักครู่</div>
 </div>
 
 <!-- unauthorized -->
@@ -180,7 +177,7 @@ textarea.required{border-color:rgba(239,68,68,.5)}
 <!-- GPS out of range -->
 <div class="ov hidden" id="ov-gps">
   <div class="ov-icon block">📍</div>
-  <div class="ov-title red">ระยะห่างเกิน 20 เมตร</div>
+  <div class="ov-title red">อยู่นอกระยะที่กำหนด</div>
   <div class="ov-sub">คุณอยู่ห่างจากจุดตรวจ</div>
   <div class="ov-gps-dist" id="ov-gps-dist">— ม.</div>
   <div class="ov-gps-bar"><div class="ov-gps-fill" id="ov-gps-fill" style="width:0%"></div></div>
@@ -274,15 +271,15 @@ textarea.required{border-color:rgba(239,68,68,.5)}
 
       <!-- Step 2: Photo (GPS-locked) -->
       <div class="card">
-        <div class="card-hdr">🖼️ ขั้นตอนที่ 2 — ถ่ายรูปหลักฐาน <span style="color:var(--red);font-size:12px;margin-left:4px">*บังคับ · กล้องสดเท่านั้น</span></div>
+        <div class="card-hdr">🖼️ ขั้นตอนที่ 2 — ถ่ายรูปหลักฐาน <span style="color:var(--red);font-size:12px;margin-left:4px">*บังคับ</span></div>
         <div class="card-body">
           <div class="photo-zone locked" id="photo-zone">
             <div class="photo-zone-icon">🔒</div>
             <div class="photo-zone-title">รอตรวจสอบ GPS</div>
-            <div class="photo-zone-sub">ต้องอยู่ในระยะ 20 เมตร<br>จากจุดตรวจก่อนถ่ายรูปได้</div>
+            <div class="photo-zone-sub">ต้องอยู่ในระยะตรวจก่อนถ่ายรูปได้</div>
           </div>
-          <!-- capture=environment = กล้องหลัง, ไม่มี accept="image/*" = ไม่เปิด album -->
-          <input type="file" id="photo-input" capture="environment" onchange="handlePhoto(event)">
+          <!-- แก้ไขเพิ่ม accept="image/*" บังคับเลือกรูป/กล้องได้ดีขึ้นบน Android -->
+          <input type="file" id="photo-input" capture="environment" accept="image/*" onchange="handlePhoto(event)">
         </div>
       </div>
 
@@ -349,22 +346,10 @@ textarea.required{border-color:rgba(239,68,68,.5)}
 // ════════════════════════════════════════════════════
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg-YEFaDUUahLcMqoGp1TzJJ6uS_ACCuKorrm38Ww21NPB4TV94kQ/exec';
 const LIFF_ID = '2009191893-YFzSE10x';
-const GPS_RADIUS_M = 20; // ระยะ (เมตร) ที่อนุญาต
+const GPS_RADIUS_M = 50; // ปรับเพิ่มจาก 20m เป็น 50m เพื่อความสมจริงในการใช้งาน
 
-// ════════════════════════════════════════════════════
-// จุดตรวจ 7 จุด
-// lat/lng = 0 → ยังไม่ได้ใส่พิกัด → ข้าม GPS check
-// วิธีเก็บพิกัดจริง: เปิด Google Maps → กดค้างที่จุด → copy ตัวเลข
-// ════════════════════════════════════════════════════
-const CHECKPOINTS = [
-  { id:'CP-01', name:'ประตูทิศเหนือ',    icon:'🚪', lat:0, lng:0 },
-  { id:'CP-02', name:'ประตูทิศใต้',      icon:'🚪', lat:0, lng:0 },
-  { id:'CP-03', name:'คลัง สป.5',         icon:'🏚️', lat:0, lng:0 },
-  { id:'CP-04', name:'โรงปืนร้อย.1',     icon:'🏭', lat:0, lng:0 },
-  { id:'CP-05', name:'โรงน้ำบิ๊กกัน',    icon:'💧', lat:0, lng:0 },
-  { id:'CP-06', name:'บ้านพักผู้พัน',    icon:'🏠', lat:0, lng:0 },
-  { id:'CP-07', name:'บ้านพักซอย 5',     icon:'🏘️', lat:0, lng:0 },
-];
+// อาเรย์นี้จะถูกเติมจาก Database (Google Sheets)
+let CHECKPOINTS = [];
 
 // ════════════════════════════════════════════════════
 // STATE
@@ -387,12 +372,30 @@ async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) { liff.login(); return; }
+    
     const profile = await liff.getProfile();
-    S.userId = profile.userId; S.userName = profile.displayName;
-    const authRes = await fetch(`${GAS_URL}?action=check_admin&userId=${S.userId}`).then(r=>r.json());
+    S.userId = profile.userId; 
+    S.userName = profile.displayName;
+
+    document.getElementById('load-sub').textContent = 'กำลังตรวจสอบสิทธิ์...';
+
+    // ดึงข้อมูลสิทธิ์และรายชื่อจุดตรวจไปพร้อมๆ กันเพื่อความรวดเร็ว
+    const [authRes, cpRes] = await Promise.all([
+      fetch(`${GAS_URL}?action=check_admin&userId=${S.userId}`).then(r=>r.json()),
+      fetch(`${GAS_URL}?action=get_checkpoints`).then(r=>r.json())
+    ]);
+
     if (!authRes.isAdmin) { showBlock(authRes.reason || 'ไม่มีสิทธิ์เข้าใช้งาน'); return; }
     S.userName  = authRes.userName || S.userName;
     S.adminType = authRes.adminType;
+    
+    if(cpRes.status === 'ok' && cpRes.checkpoints.length > 0) {
+      CHECKPOINTS = cpRes.checkpoints;
+    } else {
+      showBlock('ไม่พบข้อมูลจุดตรวจในระบบ กรุณาตรวจสอบ Google Sheets');
+      return;
+    }
+
     document.getElementById('hdr-name').textContent  = S.userName;
     document.getElementById('tb-total').textContent  = CHECKPOINTS.length;
     hide('ov-load'); show('main'); renderHome();
@@ -408,8 +411,8 @@ function renderHome() {
   CHECKPOINTS.forEach((cp,i) => {
     const rec  = S.checked[cp.id];
     const cls  = rec ? (rec.status==='abnormal'?'abnormal':'done') : '';
-    const icon = rec ? (rec.status==='abnormal'?'⚠️':'✅') : cp.icon||'○';
-    const sub  = rec ? ` · ${rec.status==='normal'?'ปกติ':'ผิดปกติ'}` : (cp.lat?'':'· ยังไม่ได้ตั้งพิกัด');
+    const icon = rec ? (rec.status==='abnormal'?'⚠️':'✅') : cp.icon||'📍';
+    const sub  = rec ? ` · ${rec.status==='normal'?'ปกติ':'ผิดปกติ'}` : (cp.lat?'':'· ข้ามการตรวจ GPS');
     list.innerHTML += `<div class="cp-item ${cls}">
       <div class="cp-num">${String(i+1).padStart(2,'0')}</div>
       <div><div class="cp-name">${cp.name}</div><div class="cp-loc">${sub}</div></div>
@@ -455,7 +458,6 @@ function openCheckFor(cp) {
   S.cpId=cp.id; S.cpName=cp.name;
   clearSbar('sbar1'); clearSbar('sbar2');
   showSec('check');
-  // เริ่ม GPS ทันที
   startGPSWatch(cp);
 }
 
@@ -485,12 +487,11 @@ function haversineM(lat1,lng1,lat2,lng2) {
 
 function startGPSWatch(cp) {
   if (!navigator.geolocation) {
-    // เครื่องไม่รองรับ GPS → ข้ามการ check
     setGPSBadge('na','📡 ไม่รองรับ');
     hide('gps-info'); unlockPhoto(); return;
   }
 
-  // ถ้าจุดนี้ยังไม่มีพิกัด → ข้าม GPS check
+  // ถ้า Database ไม่ได้กำหนด Lat Lng ให้ข้ามการตรวจระยะทาง
   if (!cp.lat || !cp.lng) {
     setGPSBadge('na','📡 ไม่มีพิกัด');
     showGPSInfo('nocoord','⚠️ จุดนี้ยังไม่ได้ตั้งพิกัด GPS — ข้ามการตรวจระยะ');
@@ -523,7 +524,7 @@ function onGPSUpdate(pos, cp) {
     setGPSBadge('ok',`✅ ${dist} ม.`);
     showGPSInfo('ok',`✅ อยู่ในระยะ ${dist} เมตร จากจุดตรวจ`);
     unlockPhoto();
-    stopGPS(); // หยุด watch เมื่อ OK แล้ว
+    stopGPS();
   } else {
     S.gpsOk = false;
     setGPSBadge('fail',`❌ ${dist} ม.`);
@@ -536,7 +537,7 @@ function onGPSError(err) {
   const msgs = {1:'ปฏิเสธการเข้าถึง GPS',2:'ไม่สามารถหาตำแหน่งได้',3:'หมดเวลา GPS'};
   setGPSBadge('na','📡 Error');
   showGPSInfo('nocoord','⚠️ GPS: '+(msgs[err.code]||err.message)+' — ข้ามการตรวจระยะ');
-  unlockPhoto(); // fallback: ให้ถ่ายได้
+  unlockPhoto(); // ให้ถ่ายรูปได้เพื่อความลื่นไหลของการทำงานจริง
 }
 
 function retryGPS() {
@@ -553,7 +554,6 @@ function lockPhoto() {
   pz.innerHTML='<div class="photo-zone-icon">🔒</div><div class="photo-zone-title">รอตรวจสอบ GPS</div><div class="photo-zone-sub">ต้องอยู่ในระยะ '+GPS_RADIUS_M+' เมตร<br>จากจุดตรวจก่อนถ่ายรูปได้</div>';
   pz.onclick = () => {
     if (S.gpsDist !== null) {
-      // แสดง GPS overlay พร้อม progress bar
       document.getElementById('ov-gps-dist').textContent = S.gpsDist + ' ม.';
       const pct = Math.min(100, Math.round((GPS_RADIUS_M / Math.max(S.gpsDist,1)) * 100));
       document.getElementById('ov-gps-fill').style.width = pct + '%';
@@ -565,9 +565,9 @@ function lockPhoto() {
 
 function unlockPhoto() {
   const pz=document.getElementById('photo-zone');
-  if (S.photoBase64) return; // ถ่ายไปแล้ว ไม่ reset
+  if (S.photoBase64) return; 
   pz.className='photo-zone';
-  pz.innerHTML='<div class="photo-zone-icon">📸</div><div class="photo-zone-title">แตะเพื่อถ่ายรูป</div><div class="photo-zone-sub">ใช้กล้องสดเท่านั้น<br>ไม่สามารถเลือกรูปจากอัลบั้มได้</div>';
+  pz.innerHTML='<div class="photo-zone-icon">📸</div><div class="photo-zone-title">แตะเพื่อถ่ายรูป</div><div class="photo-zone-sub">ใช้กล้องสดเท่านั้น</div>';
   pz.onclick=triggerPhoto;
   checkReady();
 }
@@ -603,7 +603,6 @@ function onQRSuccess(decoded) {
     document.getElementById('qr-cp-name').textContent=cp.name;
     document.getElementById('qr-cp-id').textContent=cp.id;
     clearSbar('sbar1');
-    // ถ้า QR จุดใหม่ ให้ re-check GPS
     stopGPS(); startGPSWatch(cp);
   } else {
     S.cpId=decoded.trim(); S.cpName='จุดตรวจ: '+decoded.trim();
@@ -618,7 +617,7 @@ function onQRSuccess(decoded) {
 function rescanQR() { S.cpId=S.cpName=null; hide('qr-ok'); checkReady(); startQR(); }
 
 // ════════════════════════════════════════════════════
-// PHOTO — capture=environment บังคับกล้องสด
+// PHOTO COMPRESSION & RESIZE (ป้องกัน Payload too large)
 // ════════════════════════════════════════════════════
 function triggerPhoto() {
   if (document.getElementById('photo-zone').classList.contains('locked')) return;
@@ -627,16 +626,50 @@ function triggerPhoto() {
 
 function handlePhoto(e) {
   const file=e.target.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const dataUrl=ev.target.result;
-    S.photoMime=file.type; S.photoBase64=dataUrl.split(',')[1];
-    const pz=document.getElementById('photo-zone');
-    pz.className='photo-zone has-photo';
-    pz.innerHTML=`<img src="${dataUrl}" alt="หลักฐาน"><div class="photo-retake" onclick="triggerPhoto()">📷 ถ่ายใหม่</div>`;
-    pz.onclick=null; checkReady();
-  };
-  reader.readAsDataURL(file); e.target.value='';
+  const reader = new FileReader();
+  
+  reader.onload = function(event) {
+    const img = new Image();
+    img.onload = function() {
+      // ลดขนาดรูปภาพไม่เกิน 800px เพื่อความรวดเร็วในการส่ง
+      const MAX_WIDTH = 800;
+      const MAX_HEIGHT = 800;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // บีบอัดให้เป็น JPEG Quality 0.7
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+      S.photoMime = 'image/jpeg'; 
+      S.photoBase64 = dataUrl.split(',')[1];
+      
+      const pz = document.getElementById('photo-zone');
+      pz.className = 'photo-zone has-photo';
+      pz.innerHTML = `<img src="${dataUrl}" alt="หลักฐาน"><div class="photo-retake" onclick="triggerPhoto()">📷 ถ่ายใหม่</div>`;
+      pz.onclick = null; 
+      checkReady();
+    }
+    img.src = event.target.result;
+  }
+  reader.readAsDataURL(file); 
+  e.target.value='';
 }
 
 // ════════════════════════════════════════════════════
@@ -701,7 +734,7 @@ async function submitCheck() {
         status:S.status,notes,
         imageBase64:S.photoBase64,imageMime:S.photoMime||'image/jpeg',
         timestamp,tourStartTime:S.tourStart,
-        gpsLat:S.gpsLat,gpsLng:S.gpsLng,gpsDist:S.gpsDist,
+        gpsLat:S.gpsLat,gpsLng:S.gpsLng
       })
     });
     const data=await res.json();

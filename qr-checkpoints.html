@@ -2,12 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR จุดตรวจยาม — พิมพ์และแผนที่</title>
-
-<!-- Leaflet CSS for Map -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
+<title>QR จุดตรวจยาม — พิมพ์</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=IBM+Plex+Mono:wght@600&display=swap');
 
@@ -25,47 +20,6 @@
     color: #333;
     margin-bottom: 24px;
     font-weight: 600;
-  }
-  
-  .control-panel {
-    background: #fff;
-    padding: 20px;
-    border-radius: 12px;
-    max-width: 800px;
-    margin: 0 auto 20px auto;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    text-align: center;
-  }
-  
-  input.url-input {
-    width: 80%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-family: monospace;
-    margin-bottom: 10px;
-  }
-
-  .view-toggle {
-    margin-top: 15px;
-    padding-top: 15px;
-    border-top: 1px dashed #eee;
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-  }
-
-  /* Map Container */
-  #map-container {
-    display: none; /* ซ่อนแผนที่ไว้ก่อน (เปิดโหมด Grid เป็นค่าเริ่มต้น) */
-    max-width: 800px;
-    margin: 0 auto;
-    height: 500px;
-    border-radius: 16px;
-    overflow: hidden;
-    border: 2px solid #e0e0e0;
-    box-shadow: 0 4px 12px rgba(0,0,0,.1);
-    z-index: 1; /* Ensure leaflet map stays in container */
   }
 
   .grid {
@@ -152,6 +106,7 @@
     image-rendering: pixelated;
   }
 
+  /* มุม QR frame */
   .qr-wrap::before, .qr-wrap::after {
     content: '';
     position: absolute;
@@ -194,54 +149,36 @@
     font-weight: 600;
     color: #555;
   }
-  
-  .btn {
-    background: #f59e0b; color: #000; border: none; border-radius: 10px;
-    padding: 10px 24px; font-size: 15px; font-weight: 700;
-    font-family: 'Sarabun', sans-serif; cursor: pointer;
-    box-shadow: 0 4px 16px rgba(245,158,11,.4); margin: 5px;
-    transition: all 0.2s;
-  }
-  .btn:hover { transform: translateY(-2px); }
-  .btn-outline { background: #fff; border: 2px solid #ccc; box-shadow: none; }
-  .btn-active { background: #1a1a2e; color: #fff; box-shadow: 0 4px 16px rgba(26,26,46,.4); border-color: #1a1a2e; }
 
-  /* Popup style for Map */
-  .map-popup-container {
-    text-align: center;
-    font-family: 'Sarabun', sans-serif;
-  }
-  .map-popup-title {
-    font-weight: 700;
-    font-size: 14px;
-    margin-bottom: 2px;
-  }
-  .map-popup-id {
-    font-family: 'IBM Plex Mono', monospace;
+  .scan-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-size: 11px;
-    color: #666;
-    background: #eee;
-    padding: 2px 6px;
-    border-radius: 4px;
-    display: inline-block;
+    color: #888;
+    margin-top: -4px;
   }
-  .map-popup-qr {
-    width: 120px;
-    height: 120px;
-    margin: 10px auto;
-    border: 2px solid #f59e0b;
-    border-radius: 8px;
-    padding: 4px;
-    background: #fff;
+
+  .scan-hint-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.4; transform:scale(1.3); }
   }
 
   /* ── PRINT STYLES ── */
   @media print {
     body { background: #fff; padding: 0; }
     h1.page-title { margin-bottom: 16px; }
-    .grid { max-width: 100%; gap: 14px; display: grid !important; }
-    #map-container { display: none !important; } /* ซ่อนแผนที่เวลาพิมพ์ */
+    .grid { max-width: 100%; gap: 14px; }
     .card { box-shadow: none; border: 1.5px solid #ccc; }
+    .scan-hint-dot { animation: none; background: #22c55e; }
     .no-print { display: none; }
 
     @page {
@@ -253,183 +190,72 @@
 </head>
 <body>
 
-<div class="control-panel no-print">
-  <p style="font-size: 14px; color: #666; margin-bottom: 10px;">วาง Web App URL ของคุณที่นี่เพื่อดึงจุดตรวจล่าสุดจากระบบ</p>
-  <input type="text" id="gasUrl" class="url-input" placeholder="https://script.google.com/macros/s/.../exec">
-  <br>
-  <button class="btn btn-outline" onclick="fetchCheckpoints()">🔄 โหลดข้อมูลใหม่</button>
-  <button class="btn" onclick="window.print()">🖨️ พิมพ์ (Save as PDF)</button>
-  
-  <div class="view-toggle">
-    <button id="btnViewGrid" class="btn btn-active" onclick="setView('grid')">🗂️ มุมมองการ์ด (QR)</button>
-    <button id="btnViewMap" class="btn btn-outline" onclick="setView('map')">🗺️ มุมมองแผนที่</button>
-  </div>
+<div class="no-print" style="text-align:center; margin-bottom:20px;">
+  <button onclick="window.print()" style="
+    background:#f59e0b; color:#000; border:none; border-radius:10px;
+    padding:12px 32px; font-size:16px; font-weight:700;
+    font-family:'Sarabun',sans-serif; cursor:pointer;
+    box-shadow:0 4px 16px rgba(245,158,11,.4);
+  ">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+  <p style="margin-top:8px; font-size:13px; color:#888;">เลือก "Save as PDF" ในหน้าต่างปริ้นเพื่อบันทึกไฟล์</p>
 </div>
 
 <h1 class="page-title">🛡️ จุดตรวจยาม — Guard Tour Checkpoints</h1>
 
-<!-- มุมมองกริด (ค่าเริ่มต้น) -->
-<div class="grid" id="grid">
-  <div style="grid-column: span 2; text-align: center; color: #888; padding: 40px;">
-    กด "โหลดข้อมูลใหม่" เพื่อดึงจุดตรวจ
-  </div>
-</div>
-
-<!-- มุมมองแผนที่ -->
-<div id="map-container"></div>
-
-<!-- Leaflet JS for Map -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<div class="grid" id="grid"></div>
 
 <script>
-// ใส่ URL ของคุณไว้เป็นค่าเริ่มต้นได้
-const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg-YEFaDUUahLcMqoGp1TzJJ6uS_ACCuKorrm38Ww21NPB4TV94kQ/exec';
-document.getElementById('gasUrl').value = DEFAULT_GAS_URL;
+// ข้อมูลจุดตรวจ ให้ตรงกับที่อยู่ใน Google Sheets
+const CHECKPOINTS = [
+  { id: 'CP-01', name: 'ประตูทิศเหนือ',  location: 'ทางเข้าด้านเหนือ',   icon: '🚪' },
+  { id: 'CP-02', name: 'ประตูทิศใต้',    location: 'ทางเข้าด้านใต้',     icon: '🚪' },
+  { id: 'CP-03', name: 'คลัง สป.5',      location: 'คลังสิ่งปลูกสร้าง',  icon: '🏚️' },
+  { id: 'CP-04', name: 'โรงปืนร้อย.1',   location: 'โรงเก็บอาวุธ ร้อย 1', icon: '🏭' },
+  { id: 'CP-05', name: 'โรงน้ำบิ๊กกัน',  location: 'อาคารระบบน้ำ',       icon: '💧' },
+  { id: 'CP-06', name: 'บ้านพักผู้พัน',  location: 'บ้านพักนายทหาร',     icon: '🏠' },
+  { id: 'CP-07', name: 'บ้านพักซอย 5',   location: 'บ้านพักซอย 5',       icon: '🏘️' },
+];
 
-let currentCheckpoints = [];
-let map = null;
-let markers = [];
+const grid = document.getElementById('grid');
 
-// ฟังก์ชันสลับมุมมองระหว่าง Grid และ Map
-function setView(viewMode) {
-  const gridEl = document.getElementById('grid');
-  const mapEl = document.getElementById('map-container');
-  const btnGrid = document.getElementById('btnViewGrid');
-  const btnMap = document.getElementById('btnViewMap');
+CHECKPOINTS.forEach((cp, i) => {
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=M&data=${encodeURIComponent(cp.id)}`;
 
-  if (viewMode === 'grid') {
-    gridEl.style.display = 'grid';
-    mapEl.style.display = 'none';
-    btnGrid.className = 'btn btn-active';
-    btnMap.className = 'btn btn-outline';
-  } else {
-    gridEl.style.display = 'none';
-    mapEl.style.display = 'block';
-    btnGrid.className = 'btn btn-outline';
-    btnMap.className = 'btn btn-active';
-    
-    // บังคับให้แผนที่รีเฟรชขนาดตัวเองเมื่อแสดงผลจากสถานะซ่อน (display: none)
-    if (map) {
-      setTimeout(() => map.invalidateSize(), 100);
-    }
-  }
-}
-
-async function fetchCheckpoints() {
-  const url = document.getElementById('gasUrl').value.trim();
-  const grid = document.getElementById('grid');
-  
-  if (!url) { alert('กรุณาใส่ Web App URL'); return; }
-  
-  grid.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">⏳ กำลังโหลดข้อมูล...</div>';
-  
-  try {
-    const res = await fetch(url + '?action=get_checkpoints');
-    const data = await res.json();
-    
-    if (data.status === 'ok' && data.checkpoints) {
-      currentCheckpoints = data.checkpoints;
-      renderCards(currentCheckpoints);
-      renderMap(currentCheckpoints);
-    } else {
-      throw new Error('โครงสร้างข้อมูลไม่ถูกต้อง');
-    }
-  } catch (err) {
-    grid.innerHTML = `<div style="grid-column: span 2; text-align: center; color: red; padding: 40px;">❌ เกิดข้อผิดพลาด: ${err.message}</div>`;
-  }
-}
-
-function renderCards(checkpoints) {
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  
-  if (checkpoints.length === 0) {
-    grid.innerHTML = '<div style="grid-column: span 2; text-align: center; padding: 40px;">ไม่มีจุดตรวจในระบบ</div>';
-    return;
-  }
-
-  checkpoints.forEach((cp, i) => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=M&data=${encodeURIComponent(cp.id)}`;
-    const icon = cp.icon || '📍';
-
-    grid.innerHTML += `
-      <div class="card">
-        <div class="card-top">
-          <div class="card-top-icon">${icon}</div>
-          <div>
-            <div class="card-top-title">${cp.name}</div>
-            <div class="card-top-sub">${cp.location || 'ไม่ระบุตำแหน่ง'}</div>
-          </div>
-          <div class="card-top-id">${cp.id}</div>
+  grid.innerHTML += `
+    <div class="card">
+      <div class="card-top">
+        <div class="card-top-icon">${cp.icon}</div>
+        <div>
+          <div class="card-top-title">${cp.name}</div>
+          <div class="card-top-sub">${cp.location}</div>
         </div>
-
-        <div class="card-body">
-          <div class="qr-wrap">
-            <img src="${qrUrl}" alt="QR ${cp.id}" loading="lazy">
-          </div>
-          <div class="qr-data">${cp.id}</div>
-        </div>
-
-        <div class="card-footer">
-          <div>
-            <div class="footer-label">ลำดับ</div>
-            <div class="footer-val">จุดที่ ${String(i+1).padStart(2,'0')} / ${String(checkpoints.length).padStart(2,'0')}</div>
-          </div>
-          <div style="text-align:right">
-            <div class="footer-label">พิกัด GPS</div>
-            <div class="footer-val">${(cp.lat && cp.lng) ? cp.lat.toFixed(4)+','+cp.lng.toFixed(4) : 'ไม่ระบุพิกัด'}</div>
-          </div>
-        </div>
-      </div>`;
-  });
-}
-
-function renderMap(checkpoints) {
-  // กรองเอาเฉพาะจุดที่มีพิกัด (Lat, Lng ไม่เป็น 0)
-  const mapPoints = checkpoints.filter(cp => cp.lat && cp.lng && (cp.lat !== 0 || cp.lng !== 0));
-
-  if (!map) {
-    // กำหนดค่าเริ่มต้นแผนที่ (พิกัดกลางประเทศไทย ถ้ายังไม่มีข้อมูล)
-    map = L.map('map-container').setView([13.736717, 100.523186], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-  } else {
-    // เคลียร์หมุดเก่าถ้ามีการรีเฟรชข้อมูล
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
-  }
-
-  if (mapPoints.length === 0) return; // ไม่มีจุดที่มีพิกัดเลย
-
-  const bounds = L.latLngBounds();
-
-  mapPoints.forEach(cp => {
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&ecc=M&data=${encodeURIComponent(cp.id)}`;
-    const icon = cp.icon || '📍';
-    
-    // เนื้อหาที่จะขึ้นตอนกดที่หมุด (Popup)
-    const popupContent = `
-      <div class="map-popup-container">
-        <div class="map-popup-title">${icon} ${cp.name}</div>
-        <div class="map-popup-id">${cp.id}</div><br>
-        <img src="${qrUrl}" class="map-popup-qr" alt="QR Code"><br>
-        <span style="font-size:11px; color:#888;">${cp.lat.toFixed(6)}, ${cp.lng.toFixed(6)}</span>
+        <div class="card-top-id">${cp.id}</div>
       </div>
-    `;
 
-    // สร้างหมุดปักลงแผนที่
-    const marker = L.marker([cp.lat, cp.lng]).addTo(map).bindPopup(popupContent);
-    markers.push(marker);
-    bounds.extend([cp.lat, cp.lng]); // ขยายขอบเขตแผนที่ให้ครอบคลุมจุดนี้
-  });
+      <div class="card-body">
+        <div class="qr-wrap">
+          <img src="${qrUrl}" alt="QR ${cp.id}" loading="lazy">
+        </div>
+        <div class="qr-data">${cp.id}</div>
+        <div class="scan-hint">
+          <div class="scan-hint-dot"></div>
+          สแกนด้วยแอปตรวจรอบยาม
+        </div>
+      </div>
 
-  // ซูมและเลื่อนแผนที่ให้เห็นหมุดทุกอันพอดี
-  map.fitBounds(bounds, { padding: [40, 40] });
-}
-
-// โหลดครั้งแรกตอนเปิดหน้าเว็บ
-fetchCheckpoints();
+      <div class="card-footer">
+        <div>
+          <div class="footer-label">ลำดับ</div>
+          <div class="footer-val">จุดที่ ${String(i+1).padStart(2,'0')} / ${String(CHECKPOINTS.length).padStart(2,'0')}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="footer-label">รหัสข้อมูล QR</div>
+          <div class="footer-val">${cp.id}</div>
+        </div>
+      </div>
+    </div>`;
+});
 </script>
+
 </body>
 </html>
