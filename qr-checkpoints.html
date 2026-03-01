@@ -2,229 +2,265 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>QR จุดตรวจยาม — พิมพ์</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR จุดตรวจยาม — Guard Tour</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=IBM+Plex+Mono:wght@600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&family=IBM+Plex+Mono:wght@600&display=swap');
 
-  * { margin:0; padding:0; box-sizing:border-box; }
+* { margin:0; padding:0; box-sizing:border-box; }
 
-  body {
-    font-family: 'Sarabun', sans-serif;
-    background: #f0f0f0;
-    padding: 20px;
-  }
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: #f0f2f5;
+  padding: 24px 16px;
+  min-height: 100vh;
+}
 
-  h1.page-title {
-    text-align: center;
-    font-size: 18px;
-    color: #333;
-    margin-bottom: 24px;
-    font-weight: 600;
-  }
+/* ══ TOOLBAR ══ */
+.toolbar {
+  max-width: 860px;
+  margin: 0 auto 24px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.toolbar-logo { font-size: 32px; }
+.toolbar-title { font-size: 20px; font-weight: 800; color: #1a1a2e; }
+.toolbar-sub   { font-size: 13px; color: #666; margin-top: 2px; }
+.toolbar-actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; }
+.btn-print {
+  background: #f59e0b; color: #000; border: none; border-radius: 10px;
+  padding: 11px 24px; font-size: 15px; font-weight: 700;
+  font-family: 'Sarabun', sans-serif; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(245,158,11,.4);
+  transition: all .2s;
+}
+.btn-print:hover { background: #d97706; transform: translateY(-1px); }
+.btn-secondary {
+  background: #fff; color: #444; border: 1.5px solid #ddd;
+  border-radius: 10px; padding: 10px 18px; font-size: 14px;
+  font-family: 'Sarabun', sans-serif; cursor: pointer; transition: all .2s;
+}
+.btn-secondary:hover { border-color: #aaa; }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    max-width: 800px;
-    margin: 0 auto;
-  }
+/* ══ STATS BAR ══ */
+.stats {
+  max-width: 860px; margin: 0 auto 20px;
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.stat-chip {
+  background: #fff; border-radius: 10px; padding: 10px 16px;
+  font-size: 13px; color: #555; border: 1px solid #e8e8e8;
+  display: flex; align-items: center; gap: 7px;
+}
+.stat-chip strong { color: #1a1a2e; }
 
-  .card {
-    background: #fff;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0,0,0,.1);
-    border: 1.5px solid #e0e0e0;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
+/* ══ GRID ══ */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  max-width: 860px;
+  margin: 0 auto;
+}
 
-  .card-top {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    padding: 14px 16px 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+/* ══ CARD ══ */
+.card {
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(0,0,0,.09);
+  border: 1.5px solid #e8e8e8;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  transition: transform .2s, box-shadow .2s;
+}
+.card:hover { transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,.13); }
 
-  .card-top-icon {
-    width: 36px; height: 36px;
-    background: #f59e0b;
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; flex-shrink: 0;
-  }
+.card-top {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  padding: 14px 16px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.card-top-icon {
+  width: 38px; height: 38px;
+  background: #f59e0b;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(245,158,11,.4);
+}
+.card-top-title { font-size: 16px; font-weight: 800; color: #fff; line-height: 1.2; }
+.card-top-sub   { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 3px; }
+.card-top-id {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245,158,11,.15);
+  border: 1px solid rgba(245,158,11,.3);
+  border-radius: 8px;
+  padding: 4px 10px; flex-shrink: 0;
+}
 
-  .card-top-title {
-    font-size: 16px;
-    font-weight: 800;
-    color: #fff;
-    line-height: 1.2;
-  }
+.card-body {
+  padding: 18px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 12px;
+}
 
-  .card-top-sub {
-    font-size: 11px;
-    color: rgba(255,255,255,.55);
-    margin-top: 2px;
-  }
+.qr-wrap {
+  background: #fff;
+  border: 2.5px solid #f0f0f0;
+  border-radius: 14px;
+  padding: 10px;
+  display: inline-block;
+  position: relative;
+}
+.qr-wrap img {
+  display: block; width: 190px; height: 190px;
+  image-rendering: pixelated;
+}
 
-  .card-top-id {
-    margin-left: auto;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-    font-weight: 600;
-    color: #f59e0b;
-    background: rgba(245,158,11,.15);
-    border: 1px solid rgba(245,158,11,.3);
-    border-radius: 8px;
-    padding: 4px 10px;
-    flex-shrink: 0;
-  }
+/* มุม QR ทั้ง 4 มุม */
+.qr-wrap::before,.qr-wrap::after,
+.qr-corner-bl,.qr-corner-tr {
+  content: '';
+  position: absolute;
+  width: 22px; height: 22px;
+  border-color: #f59e0b; border-style: solid;
+  pointer-events: none;
+}
+.qr-wrap::before { top:4px; left:4px; border-width:3px 0 0 3px; border-radius:4px 0 0 0; }
+.qr-wrap::after  { bottom:4px; right:4px; border-width:0 3px 3px 0; border-radius:0 0 4px 0; }
+.qr-corner-bl    { bottom:4px; left:4px; border-width:0 0 3px 3px; border-radius:0 0 0 4px; }
+.qr-corner-tr    { top:4px; right:4px; border-width:3px 3px 0 0; border-radius:0 4px 0 0; }
 
-  .card-body {
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
+.qr-data {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  color: #333;
+  background: #f7f7f7;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 6px 18px;
+  letter-spacing: 1.5px;
+}
 
-  .qr-wrap {
-    background: #fff;
-    border: 2px solid #e8e8e8;
-    border-radius: 12px;
-    padding: 10px;
-    display: inline-block;
-    position: relative;
-  }
+.scan-hint {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; color: #999;
+}
+.scan-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #22c55e; flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:.35; transform:scale(1.4); }
+}
 
-  .qr-wrap img {
-    display: block;
-    width: 180px;
-    height: 180px;
-    image-rendering: pixelated;
-  }
+.card-footer {
+  border-top: 1px dashed #e8e8e8;
+  padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fafafa;
+}
+.footer-label { font-size: 10px; color: #bbb; text-transform: uppercase; letter-spacing:.5px; }
+.footer-val   { font-size: 11px; font-weight: 700; color: #444; margin-top: 2px; }
 
-  /* มุม QR frame */
-  .qr-wrap::before, .qr-wrap::after {
-    content: '';
-    position: absolute;
-    width: 20px; height: 20px;
-    border-color: #f59e0b;
-    border-style: solid;
-  }
-  .qr-wrap::before { top: 4px; left: 4px; border-width: 3px 0 0 3px; border-radius: 3px 0 0 0; }
-  .qr-wrap::after  { bottom: 4px; right: 4px; border-width: 0 3px 3px 0; border-radius: 0 0 3px 0; }
+/* ══ GPS BADGE ══ */
+.gps-badge {
+  font-size: 10px; padding: 2px 8px; border-radius: 20px;
+  font-weight: 600; margin-left: auto;
+}
+.gps-badge.has  { background:#dcfce7; color:#16a34a; border:1px solid #86efac; }
+.gps-badge.none { background:#fef9c3; color:#854d0e; border:1px solid #fde047; }
 
-  .qr-data {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-    font-weight: 600;
-    color: #444;
-    background: #f5f5f5;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 6px 16px;
-    letter-spacing: 1px;
-  }
-
-  .card-footer {
-    border-top: 1px dashed #ddd;
-    padding: 10px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .footer-label {
-    font-size: 10px;
-    color: #aaa;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-  }
-
-  .footer-val {
-    font-size: 11px;
-    font-weight: 600;
-    color: #555;
-  }
-
-  .scan-hint {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: #888;
-    margin-top: -4px;
-  }
-
-  .scan-hint-dot {
-    width: 6px; height: 6px;
-    border-radius: 50%;
-    background: #22c55e;
-    flex-shrink: 0;
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%,100% { opacity:1; transform:scale(1); }
-    50%      { opacity:.4; transform:scale(1.3); }
-  }
-
-  /* ── PRINT STYLES ── */
-  @media print {
-    body { background: #fff; padding: 0; }
-    h1.page-title { margin-bottom: 16px; }
-    .grid { max-width: 100%; gap: 14px; }
-    .card { box-shadow: none; border: 1.5px solid #ccc; }
-    .scan-hint-dot { animation: none; background: #22c55e; }
-    .no-print { display: none; }
-
-    @page {
-      size: A4;
-      margin: 12mm 10mm;
-    }
-  }
+/* ══ PRINT ══ */
+@media print {
+  body { background:#fff; padding:0; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .toolbar, .stats, .no-print { display:none; }
+  .grid { max-width:100%; gap:12px; }
+  .card { box-shadow:none; border:1.5px solid #ccc; break-inside:avoid; }
+  .card:hover { transform:none; box-shadow:none; }
+  .scan-dot { animation:none; }
+  @page { size:A4; margin:10mm 8mm; }
+}
 </style>
 </head>
 <body>
 
-<div class="no-print" style="text-align:center; margin-bottom:20px;">
-  <button onclick="window.print()" style="
-    background:#f59e0b; color:#000; border:none; border-radius:10px;
-    padding:12px 32px; font-size:16px; font-weight:700;
-    font-family:'Sarabun',sans-serif; cursor:pointer;
-    box-shadow:0 4px 16px rgba(245,158,11,.4);
-  ">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
-  <p style="margin-top:8px; font-size:13px; color:#888;">เลือก "Save as PDF" ในหน้าต่างปริ้นเพื่อบันทึกไฟล์</p>
+<!-- ══ TOOLBAR ══ -->
+<div class="toolbar no-print">
+  <div class="toolbar-logo">🛡️</div>
+  <div>
+    <div class="toolbar-title">Guard Tour — QR จุดตรวจ</div>
+    <div class="toolbar-sub">พิมพ์แล้วติดไว้ที่จุดตรวจแต่ละจุด</div>
+  </div>
+  <div class="toolbar-actions">
+    <button class="btn-secondary" onclick="toggleGPS()">📍 แสดง/ซ่อน พิกัด GPS</button>
+    <button class="btn-print" onclick="window.print()">🖨️ พิมพ์ / บันทึก PDF</button>
+  </div>
 </div>
 
-<h1 class="page-title">🛡️ จุดตรวจยาม — Guard Tour Checkpoints</h1>
+<!-- ══ STATS ══ -->
+<div class="stats no-print">
+  <div class="stat-chip">📍 จุดตรวจทั้งหมด: <strong id="stat-total">0</strong> จุด</div>
+  <div class="stat-chip">✅ มีพิกัด GPS: <strong id="stat-gps">0</strong> จุด</div>
+  <div class="stat-chip">⚠️ ไม่มีพิกัด: <strong id="stat-no-gps">0</strong> จุด</div>
+</div>
 
 <div class="grid" id="grid"></div>
 
 <script>
-// ข้อมูลจุดตรวจ ให้ตรงกับที่อยู่ใน Google Sheets
+// ════════════════════════════════════════════════════
+// ข้อมูลจุดตรวจ — แก้ไขให้ตรงกับข้อมูลในระบบ
+// ** ต้องตรงกับข้อมูลใน Google Sheets (แท็บ Checkpoints) **
+// ════════════════════════════════════════════════════
 const CHECKPOINTS = [
-  { id: 'CP-01', name: 'ประตูทิศเหนือ',  location: 'ทางเข้าด้านเหนือ',   icon: '🚪' },
-  { id: 'CP-02', name: 'ประตูทิศใต้',    location: 'ทางเข้าด้านใต้',     icon: '🚪' },
-  { id: 'CP-03', name: 'คลัง สป.5',      location: 'คลังสิ่งปลูกสร้าง',  icon: '🏚️' },
-  { id: 'CP-04', name: 'โรงปืนร้อย.1',   location: 'โรงเก็บอาวุธ ร้อย 1', icon: '🏭' },
-  { id: 'CP-05', name: 'โรงน้ำบิ๊กกัน',  location: 'อาคารระบบน้ำ',       icon: '💧' },
-  { id: 'CP-06', name: 'บ้านพักผู้พัน',  location: 'บ้านพักนายทหาร',     icon: '🏠' },
-  { id: 'CP-07', name: 'บ้านพักซอย 5',   location: 'บ้านพักซอย 5',       icon: '🏘️' },
+  { id:'CP-01', name:'ประตูทิศเหนือ',  location:'ทางเข้าด้านเหนือ',    icon:'🚪', lat:0, lng:0 },
+  { id:'CP-02', name:'ประตูทิศใต้',    location:'ทางเข้าด้านใต้',      icon:'🚪', lat:0, lng:0 },
+  { id:'CP-03', name:'คลัง สป.5',      location:'คลังสิ่งปลูกสร้าง',   icon:'🏚️', lat:0, lng:0 },
+  { id:'CP-04', name:'โรงปืนร้อย.1',   location:'โรงเก็บอาวุธ ร้อย 1', icon:'🏭', lat:0, lng:0 },
+  { id:'CP-05', name:'โรงน้ำบิ๊กกัน',  location:'อาคารระบบน้ำ',        icon:'💧', lat:0, lng:0 },
+  { id:'CP-06', name:'บ้านพักผู้พัน',  location:'บ้านพักนายทหาร',      icon:'🏠', lat:0, lng:0 },
+  { id:'CP-07', name:'บ้านพักซอย 5',   location:'บ้านพักซอย 5',        icon:'🏘️', lat:0, lng:0 },
 ];
 
+let showGPS = false;
 const grid = document.getElementById('grid');
 
-CHECKPOINTS.forEach((cp, i) => {
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=360x360&ecc=M&data=${encodeURIComponent(cp.id)}`;
+function toggleGPS() {
+  showGPS = !showGPS;
+  renderGrid();
+}
 
-  grid.innerHTML += `
+function renderGrid() {
+  grid.innerHTML = '';
+
+  const withGPS = CHECKPOINTS.filter(cp => cp.lat && cp.lng).length;
+  document.getElementById('stat-total').textContent  = CHECKPOINTS.length;
+  document.getElementById('stat-gps').textContent    = withGPS;
+  document.getElementById('stat-no-gps').textContent = CHECKPOINTS.length - withGPS;
+
+  CHECKPOINTS.forEach((cp, i) => {
+    const hasGPS = !!(cp.lat && cp.lng);
+    const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=380x380&ecc=M&margin=0&data=${encodeURIComponent(cp.id)}`;
+    const gpsText = hasGPS
+      ? `${cp.lat.toFixed(6)}, ${cp.lng.toFixed(6)}`
+      : 'ยังไม่ได้ตั้งพิกัด';
+
+    grid.innerHTML += `
     <div class="card">
       <div class="card-top">
-        <div class="card-top-icon">${cp.icon}</div>
+        <div class="card-top-icon">${cp.icon || '📍'}</div>
         <div>
           <div class="card-top-title">${cp.name}</div>
           <div class="card-top-sub">${cp.location}</div>
@@ -235,10 +271,16 @@ CHECKPOINTS.forEach((cp, i) => {
       <div class="card-body">
         <div class="qr-wrap">
           <img src="${qrUrl}" alt="QR ${cp.id}" loading="lazy">
+          <div class="qr-corner-bl"></div>
+          <div class="qr-corner-tr"></div>
         </div>
+
         <div class="qr-data">${cp.id}</div>
+
+        ${showGPS ? `<div style="font-size:11px;color:#888;text-align:center;font-family:'IBM Plex Mono',monospace">📍 ${gpsText}</div>` : ''}
+
         <div class="scan-hint">
-          <div class="scan-hint-dot"></div>
+          <div class="scan-dot"></div>
           สแกนด้วยแอปตรวจรอบยาม
         </div>
       </div>
@@ -248,13 +290,17 @@ CHECKPOINTS.forEach((cp, i) => {
           <div class="footer-label">ลำดับ</div>
           <div class="footer-val">จุดที่ ${String(i+1).padStart(2,'0')} / ${String(CHECKPOINTS.length).padStart(2,'0')}</div>
         </div>
+        <span class="gps-badge ${hasGPS?'has':'none'} no-print">${hasGPS?'📍 มีพิกัด':'⚠️ ไม่มีพิกัด'}</span>
         <div style="text-align:right">
-          <div class="footer-label">รหัสข้อมูล QR</div>
+          <div class="footer-label">รหัส QR</div>
           <div class="footer-val">${cp.id}</div>
         </div>
       </div>
     </div>`;
-});
+  });
+}
+
+renderGrid();
 </script>
 
 </body>
