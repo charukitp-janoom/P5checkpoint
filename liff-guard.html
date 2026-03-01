@@ -366,8 +366,40 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 const GAS_URL      = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg-YEFaDUUahLcMqoGp1TzJJ6uS_ACCuKorrm38Ww21NPB4TV94kQ/exec';
 const LIFF_ID      = '2009191893-YFzSE10x';
 const GPS_RADIUS_M = 50;
-const MAX_IMG_PX   = 800;    // ลดจาก 1024 เพื่อประหยัด bandwidth
+const MAX_IMG_PX   = 800;
 const IMG_QUALITY  = 0.65;
+
+// ── ผลัดเวร (ต้องตรงกับ CONFIG.SHIFTS ใน Code.gs) ──────────────────────
+const SHIFTS = [
+  { id: 1,  label: 'ผลัดที่ 1',  start: '22:00', end: '00:00' },
+  { id: 2,  label: 'ผลัดที่ 2',  start: '00:00', end: '02:00' },
+  { id: 3,  label: 'ผลัดที่ 3',  start: '02:00', end: '04:00' },
+  { id: 4,  label: 'ผลัดที่ 4',  start: '04:00', end: '06:00' },
+  { id: 5,  label: 'ผลัดที่ 5',  start: '06:00', end: '08:00' },
+  { id: 6,  label: 'ผลัดที่ 6',  start: '08:00', end: '10:00' },
+  { id: 7,  label: 'ผลัดที่ 7',  start: '10:00', end: '12:00' },
+  { id: 8,  label: 'ผลัดที่ 8',  start: '12:00', end: '14:00' },
+  { id: 9,  label: 'ผลัดที่ 9',  start: '14:00', end: '16:00' },
+  { id: 10, label: 'ผลัดที่ 10', start: '16:00', end: '18:00' },
+  { id: 11, label: 'ผลัดที่ 11', start: '18:00', end: '20:00' },
+  { id: 12, label: 'ผลัดที่ 12', start: '20:00', end: '22:00' },
+];
+
+/** คำนวณผลัดจากเวลา Date object */
+function detectShift(d) {
+  const h = d.getHours(), m = d.getMinutes();
+  const startMin = h * 60 + m;
+  for (const sh of SHIFTS) {
+    const [sh_h, sh_m] = sh.start.split(':').map(Number);
+    const [eh, em]     = sh.end.split(':').map(Number);
+    let sMin = sh_h * 60 + sh_m;
+    let eMin = eh   * 60 + em;
+    if (eMin <= sMin) eMin += 24 * 60;
+    const adj = startMin + (startMin < sMin && sMin >= 12 * 60 ? 24 * 60 : 0);
+    if (adj >= sMin && adj < eMin) return sh;
+  }
+  return null;
+}
 
 let CHECKPOINTS = [];
 
@@ -376,7 +408,7 @@ let CHECKPOINTS = [];
 // ════════════════════════════════════════════════════
 const S = {
   userId:null, userName:null, adminType:null,
-  tourId:null, tourStart:null, checked:{},
+  tourId:null, tourStart:null, shiftId:null, checked:{},
   cpId:null, cpName:null,
   status:null, photoBase64:null, photoMime:null,
   gpsOk:false, gpsLat:null, gpsLng:null, gpsDist:null,
@@ -545,9 +577,13 @@ function renderHome() {
 }
 
 function startTour() {
+  const now   = new Date();
   S.tourId    = 'TOUR-' + Date.now().toString(36).toUpperCase();
-  S.tourStart = new Date().toISOString();
+  S.tourStart = now.toISOString();
   S.checked   = {};
+  // ── คำนวณผลัดเวร ณ เวลาที่เริ่มรอบ ──────────────────────────────────
+  const sh    = detectShift(now);
+  S.shiftId   = sh ? sh.id : null;
   renderHome();
 }
 
@@ -1011,6 +1047,7 @@ async function sendTourSummaryNow() {
       guardName:     S.userName      || '',
       tourStartTime: S.tourStart     || '',
       tourEndTime:   new Date().toISOString(),
+      shiftId:       S.shiftId != null ? String(S.shiftId) : '',
       summary:       JSON.stringify(summary),
     }, 30000);
   } catch(e) {
