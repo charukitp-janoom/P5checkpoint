@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ตรวจรอบยาม — Guard Tour v2.4</title>
+<title>ตรวจรอบยาม — Guard Tour</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
@@ -24,15 +24,13 @@ body { font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text)
 .spinner { width:52px; height:52px; border:3px solid var(--border2); border-top-color:var(--amber); border-radius:50%; animation:spin .9s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 .ov-icon { width:76px; height:76px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:36px; }
-.ov-icon.block  { background:rgba(239,68,68,.12);  border:2px solid var(--red); }
-.ov-icon.ok     { background:rgba(34,197,94,.12);  border:2px solid var(--green); }
-.ov-icon.done   { background:rgba(245,158,11,.12); border:2px solid var(--amber); }
-.ov-icon.sending{ background:rgba(59,130,246,.12); border:2px solid var(--blue); }
+.ov-icon.block { background:rgba(239,68,68,.12); border:2px solid var(--red); }
+.ov-icon.ok    { background:rgba(34,197,94,.12);  border:2px solid var(--green); }
+.ov-icon.done  { background:rgba(245,158,11,.12); border:2px solid var(--amber); }
 .ov-title { font-size:21px; font-weight:700; }
 .ov-title.red   { color:var(--red); }
 .ov-title.green { color:var(--green); }
 .ov-title.amber { color:var(--amber); }
-.ov-title.blue  { color:var(--blue); }
 .ov-sub { font-size:14px; color:var(--muted); line-height:1.8; white-space:pre-line; max-width:300px; }
 .ov-gps-dist { font-family:'IBM Plex Mono',monospace; font-size:30px; font-weight:700; color:var(--red); }
 .ov-gps-bar  { width:100%; max-width:260px; height:8px; background:var(--surface3); border-radius:4px; overflow:hidden; }
@@ -120,15 +118,7 @@ body { font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text)
 .qr-ok-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
 .qr-rescan  { margin-left:auto; font-size:12px; color:var(--amber); text-decoration:underline; cursor:pointer; flex-shrink:0; }
 
-.photo-zone { display:flex; flex-direction:column; align-items:center; gap:9px; padding:26px 15px; background:var(--surface2); border:2px dashed var(--border2); border-radius:13px; cursor:pointer; position:relative; overflow:hidden; transition:all .2s; }
-.photo-zone.locked   { cursor:not-allowed; opacity:.45; border-color:var(--border); }
-.photo-zone.has-photo { border-style:solid; border-color:rgba(245,158,11,.4); padding:0; background:#000; }
-.photo-zone img { width:100%; border-radius:11px; display:block; max-height:200px; object-fit:cover; }
-.photo-zone-icon  { font-size:42px; }
-.photo-zone-title { font-size:15px; font-weight:700; }
-.photo-zone-sub   { font-size:12px; color:var(--muted); text-align:center; line-height:1.6; }
-.photo-retake { position:absolute; bottom:9px; right:9px; background:rgba(0,0,0,.72); color:#fff; font-size:11px; padding:5px 10px; border-radius:20px; cursor:pointer; border:1px solid rgba(255,255,255,.2); }
-input[type=file] { display:none; }
+
 
 .status-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .status-btn  { display:flex; flex-direction:column; align-items:center; gap:5px; padding:15px 8px; background:var(--surface2); border:2px solid var(--border2); border-radius:11px; cursor:pointer; font-family:'Sarabun',sans-serif; color:var(--text); transition:all .2s; }
@@ -155,7 +145,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 .confirm-val.mono  { font-family:'IBM Plex Mono',monospace; }
 .confirm-val.green { color:var(--green); }
 .confirm-val.red   { color:var(--red); }
-.confirm-photo { width:100%; max-height:160px; object-fit:cover; border-radius:9px; margin-top:5px; }
 
 .sbar { border-radius:10px; padding:10px 13px; font-size:13px; display:flex; align-items:center; gap:7px; line-height:1.5; margin-bottom:11px; }
 .sbar.hidden  { display:none; }
@@ -172,20 +161,11 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 .btn-row { display:flex; gap:8px; }
 .btn-row .btn-back { flex:0 0 auto; width:auto; padding:13px 17px; }
 
-/* ── [NEW v2.4] ov-sending: overlay แสดงระหว่างส่งรายงาน ── */
-.ov-sending-steps { display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px; margin-top:4px; }
-.ov-step { display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:10px; font-size:13px; font-weight:600; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); transition:all .3s; }
-.ov-step.active { border-color:rgba(59,130,246,.4); background:rgba(59,130,246,.08); color:var(--blue); }
-.ov-step.done   { border-color:rgba(34,197,94,.4);  background:rgba(34,197,94,.08);  color:var(--green); }
-.ov-step-spin { width:14px; height:14px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .8s linear infinite; flex-shrink:0; }
-.ov-step-icon { width:14px; text-align:center; flex-shrink:0; font-size:14px; }
-
 .hidden { display:none !important; }
 </style>
 </head>
 <body>
 
-<!-- ── OVERLAYS ── -->
 <div class="ov" id="ov-load">
   <div class="spinner"></div>
   <div class="ov-title amber" id="load-title">กำลังโหลด...</div>
@@ -204,7 +184,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
   <div class="ov-sub">คุณอยู่ห่างจากจุดตรวจ</div>
   <div class="ov-gps-dist" id="ov-gps-dist">— ม.</div>
   <div class="ov-gps-bar"><div class="ov-gps-fill" id="ov-gps-fill" style="width:0%"></div></div>
-  <div class="ov-sub" style="font-size:12px;margin-top:4px">เดินให้ถึงจุดตรวจก่อนถ่ายรูป</div>
   <button class="btn btn-secondary" style="max-width:220px;margin-top:6px" onclick="retryGPS()">🔄 ตรวจสอบระยะใหม่</button>
   <button class="btn btn-secondary" style="max-width:220px;opacity:.55;font-size:13px;margin-top:0" onclick="hideOv('ov-gps')">← กลับ</button>
 </div>
@@ -217,24 +196,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
   <button class="btn btn-secondary" style="max-width:280px" onclick="endTourManual()">🏁 จบรอบตรวจ</button>
 </div>
 
-<!-- [NEW v2.4] Overlay แสดงขณะกำลังส่งรายงานสรุป — ไม่ให้ UI ดูเหมือนค้าง -->
-<div class="ov hidden" id="ov-sending">
-  <div class="ov-icon sending">📡</div>
-  <div class="ov-title blue">กำลังส่งรายงาน...</div>
-  <div class="ov-sub" id="ov-sending-sub">กรุณารอสักครู่</div>
-  <div class="ov-sending-steps">
-    <div class="ov-step" id="step-compile">
-      <span class="ov-step-icon">📋</span>ประมวลผลข้อมูล
-    </div>
-    <div class="ov-step" id="step-send">
-      <span class="ov-step-icon">📤</span>ส่งรายงานไป LINE
-    </div>
-    <div class="ov-step" id="step-done">
-      <span class="ov-step-icon">✅</span>เสร็จสิ้น
-    </div>
-  </div>
-</div>
-
 <div class="ov hidden" id="ov-done">
   <div class="ov-icon done">🏆</div>
   <div class="ov-title amber">ตรวจรอบครบแล้ว!</div>
@@ -242,7 +203,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
   <button class="btn btn-secondary" style="max-width:280px;margin-top:6px" onclick="newTour()">🔄 เริ่มรอบใหม่</button>
 </div>
 
-<!-- ── MAIN APP ── -->
 <div id="main" class="hidden">
   <div class="hdr">
     <div class="hdr-badge">🛡️</div>
@@ -252,7 +212,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 
   <div class="content">
 
-    <!-- HOME SECTION -->
     <div id="sec-home">
       <div class="tour-bar">
         <div class="tb-icon">🗺️</div>
@@ -274,11 +233,12 @@ textarea.required { border-color:rgba(239,68,68,.5); }
       </div>
     </div>
 
-    <!-- CHECK SECTION -->
     <div id="sec-check" class="hidden">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <button class="btn btn-secondary" style="width:auto;padding:8px 14px;font-size:13px" onclick="goBackHome()">← กลับ</button>
-        <div style="font-size:15px;font-weight:700" id="sec-check-title">จุดตรวจ</div>
+        <button onclick="goBackHome()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:10px;padding:7px 14px;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
+          ← รายชื่อจุดตรวจ
+        </button>
+        <div style="font-size:14px;font-weight:700;color:var(--amber)" id="sec-check-title">—</div>
       </div>
 
       <div class="sbar hidden" id="sbar1"></div>
@@ -317,20 +277,10 @@ textarea.required { border-color:rgba(239,68,68,.5); }
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-hdr">🖼️ ขั้นตอนที่ 2 — ถ่ายรูปหลักฐาน <span style="color:var(--red);font-size:12px;margin-left:4px">*บังคับ</span></div>
-        <div class="card-body">
-          <div class="photo-zone locked" id="photo-zone">
-            <div class="photo-zone-icon">🔒</div>
-            <div class="photo-zone-title">รอตรวจสอบ GPS</div>
-            <div class="photo-zone-sub" id="photo-zone-sub">ต้องอยู่ในระยะก่อนถ่ายรูปได้</div>
-          </div>
-          <input type="file" id="photo-input" capture="environment" accept="image/*" onchange="handlePhoto(event)">
-        </div>
-      </div>
+
 
       <div class="card">
-        <div class="card-hdr">🔍 ขั้นตอนที่ 3 — สถานะจุดตรวจ</div>
+        <div class="card-hdr">🔍 ขั้นตอนที่ 2 — สถานะจุดตรวจ</div>
         <div class="card-body">
           <div class="status-grid">
             <button class="status-btn" id="btn-normal" onclick="setStatus('normal')">
@@ -348,7 +298,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
       </div>
 
       <div class="card">
-        <div class="card-hdr">📝 ขั้นตอนที่ 4 — หมายเหตุ</div>
+        <div class="card-hdr">📝 ขั้นตอนที่ 3 — หมายเหตุ</div>
         <div class="card-body">
           <div class="field">
             <label>หมายเหตุ <span id="notes-req" class="hidden">*บังคับเมื่อผิดปกติ</span></label>
@@ -361,7 +311,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
       </div>
     </div>
 
-    <!-- CONFIRM SECTION -->
     <div id="sec-confirm" class="hidden">
       <div class="sbar hidden" id="sbar2"></div>
       <div class="confirm-wrap">
@@ -370,13 +319,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
         <div class="confirm-row"><div class="confirm-key">รหัส</div><div class="confirm-val mono" id="c-id">—</div></div>
         <div class="confirm-row"><div class="confirm-key">สถานะ</div><div class="confirm-val" id="c-status">—</div></div>
         <div class="confirm-row"><div class="confirm-key">หมายเหตุ</div><div class="confirm-val" id="c-notes">—</div></div>
-        <div class="confirm-row">
-          <div class="confirm-key">รูปภาพ</div>
-          <div class="confirm-val">
-            <img id="c-photo" class="confirm-photo hidden" src="" alt="">
-            <span id="c-no-photo" style="color:var(--red)">⚠️ ยังไม่ได้ถ่ายรูป</span>
-          </div>
-        </div>
+
         <div class="confirm-row"><div class="confirm-key">GPS</div><div class="confirm-val mono green" id="c-gps">—</div></div>
         <div class="confirm-row"><div class="confirm-key">เวลา</div><div class="confirm-val mono" id="c-time">—</div></div>
         <div class="confirm-row"><div class="confirm-key">ยาม</div><div class="confirm-val" id="c-guard">—</div></div>
@@ -397,8 +340,38 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 const GAS_URL      = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg-YEFaDUUahLcMqoGp1TzJJ6uS_ACCuKorrm38Ww21NPB4TV94kQ/exec';
 const LIFF_ID      = '2009191893-YFzSE10x';
 const GPS_RADIUS_M = 50;
-const MAX_IMG_PX   = 800;
-const IMG_QUALITY  = 0.65;
+
+// ── ผลัดเวร (ต้องตรงกับ CONFIG.SHIFTS ใน Code.gs) ──────────────────────
+const SHIFTS = [
+  { id: 1,  label: 'ผลัดที่ 1',  start: '22:00', end: '00:00' },
+  { id: 2,  label: 'ผลัดที่ 2',  start: '00:00', end: '02:00' },
+  { id: 3,  label: 'ผลัดที่ 3',  start: '02:00', end: '04:00' },
+  { id: 4,  label: 'ผลัดที่ 4',  start: '04:00', end: '06:00' },
+  { id: 5,  label: 'ผลัดที่ 5',  start: '06:00', end: '08:00' },
+  { id: 6,  label: 'ผลัดที่ 6',  start: '08:00', end: '10:00' },
+  { id: 7,  label: 'ผลัดที่ 7',  start: '10:00', end: '12:00' },
+  { id: 8,  label: 'ผลัดที่ 8',  start: '12:00', end: '14:00' },
+  { id: 9,  label: 'ผลัดที่ 9',  start: '14:00', end: '16:00' },
+  { id: 10, label: 'ผลัดที่ 10', start: '16:00', end: '18:00' },
+  { id: 11, label: 'ผลัดที่ 11', start: '18:00', end: '20:00' },
+  { id: 12, label: 'ผลัดที่ 12', start: '20:00', end: '22:00' },
+];
+
+/** คำนวณผลัดจากเวลา Date object */
+function detectShift(d) {
+  const h = d.getHours(), m = d.getMinutes();
+  const startMin = h * 60 + m;
+  for (const sh of SHIFTS) {
+    const [sh_h, sh_m] = sh.start.split(':').map(Number);
+    const [eh, em]     = sh.end.split(':').map(Number);
+    let sMin = sh_h * 60 + sh_m;
+    let eMin = eh   * 60 + em;
+    if (eMin <= sMin) eMin += 24 * 60;
+    const adj = startMin + (startMin < sMin && sMin >= 12 * 60 ? 24 * 60 : 0);
+    if (adj >= sMin && adj < eMin) return sh;
+  }
+  return null;
+}
 
 let CHECKPOINTS = [];
 
@@ -407,9 +380,9 @@ let CHECKPOINTS = [];
 // ════════════════════════════════════════════════════
 const S = {
   userId:null, userName:null, adminType:null,
-  tourId:null, tourStart:null, checked:{},
+  tourId:null, tourStart:null, shiftId:null, checked:{},
   cpId:null, cpName:null,
-  status:null, photoBase64:null, photoMime:null,
+  status:null,
   gpsOk:false, gpsLat:null, gpsLng:null, gpsDist:null,
   submitting: false,
 };
@@ -461,9 +434,7 @@ async function init() {
   }
 }
 
-// ════════════════════════════════════════════════════
-// API HELPERS
-// ════════════════════════════════════════════════════
+// [FIX] apiFetch: GET เฉพาะ read-only endpoints
 async function apiFetch(url, opts = {}) {
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), 30000);
@@ -480,46 +451,13 @@ async function apiFetch(url, opts = {}) {
   }
 }
 
-// GET สำหรับ checkin (ไม่มีรูป) และ tour_complete
+// [FIX v2.1] gasGetCall: GET สำหรับ checkin (ไม่มีรูป) และ tour_complete
 async function gasGetCall(params, timeoutMs = 40000) {
-  const ctrl = new AbortController();
-  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const url  = GAS_URL + '?' + new URLSearchParams(params).toString();
-    const res  = await fetch(url, { redirect: 'follow', signal: ctrl.signal });
-    const text = await res.text();
-    clearTimeout(tid);
-    try { return JSON.parse(text); }
-    catch(_) { throw new Error('ตอบกลับผิดรูปแบบ: ' + text.substring(0, 100)); }
-  } catch(e) {
-    clearTimeout(tid);
-    if (e.name === 'AbortError') throw new Error('หมดเวลาเชื่อมต่อ (' + Math.round(timeoutMs/1000) + 's)');
-    throw e;
-  }
+  const url  = GAS_URL + '?' + new URLSearchParams(params).toString();
+  return apiFetch(url, {});
 }
 
-// POST JSON body สำหรับ upload_photo และข้อมูลใหญ่
-async function gasPostCall(data, timeoutMs = 60000) {
-  const ctrl = new AbortController();
-  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res  = await fetch(GAS_URL, {
-      method:   'POST',
-      headers:  { 'Content-Type': 'application/json' },
-      body:     JSON.stringify(data),
-      redirect: 'follow',
-      signal:   ctrl.signal,
-    });
-    const text = await res.text();
-    clearTimeout(tid);
-    try { return JSON.parse(text); }
-    catch(_) { throw new Error('ตอบกลับผิดรูปแบบ: ' + text.substring(0, 100)); }
-  } catch(e) {
-    clearTimeout(tid);
-    if (e.name === 'AbortError') throw new Error('หมดเวลาเชื่อมต่อ (' + Math.round(timeoutMs/1000) + 's)');
-    throw e;
-  }
-}
+
 
 function setLoadMsg(msg) {
   document.getElementById('load-sub').textContent = msg;
@@ -590,9 +528,13 @@ function renderHome() {
 }
 
 function startTour() {
+  const now   = new Date();
   S.tourId    = 'TOUR-' + Date.now().toString(36).toUpperCase();
-  S.tourStart = new Date().toISOString();
+  S.tourStart = now.toISOString();
   S.checked   = {};
+  // ── คำนวณผลัดเวร ณ เวลาที่เริ่มรอบ ──────────────────────────────────
+  const sh    = detectShift(now);
+  S.shiftId   = sh ? sh.id : null;
   renderHome();
 }
 
@@ -632,11 +574,10 @@ function goBackHome() {
 }
 
 function resetCheck() {
-  S.cpId = S.cpName = S.status = S.photoBase64 = S.photoMime = null;
+  S.cpId = S.cpName = S.status = null;
   S.gpsOk = false; S.gpsLat = S.gpsLng = S.gpsDist = null;
   stopQR(); stopGPS();
   show('qr-idle'); hide('qr-scan'); hide('qr-ok');
-  lockPhoto('รอตรวจสอบ GPS', 'ต้องอยู่ในระยะก่อนถ่ายรูปได้');
   document.getElementById('btn-normal').className   = 'status-btn';
   document.getElementById('btn-abnormal').className = 'status-btn';
   document.getElementById('f-notes').value = '';
@@ -663,13 +604,13 @@ function startGPSWatch(cp) {
   gpsTargetCp = cp;
   if (!navigator.geolocation) {
     setGPSBadge('na', '📡 ไม่รองรับ');
-    showGPSInfo('nocoord', '⚠️ เบราว์เซอร์นี้ไม่รองรับ GPS — ข้ามการตรวจระยะ');
-    unlockPhoto(); return;
+    showGPSInfo('nocoord', '⚠️ เบราว์เซอร์นี้ไม่รองรับ GPS');
+    return;
   }
   if (!cp.lat || !cp.lng) {
     setGPSBadge('na', '📡 ไม่มีพิกัด');
-    showGPSInfo('nocoord', '⚠️ จุดนี้ยังไม่ได้ตั้งพิกัด GPS — ข้ามการตรวจระยะ');
-    unlockPhoto(); return;
+    showGPSInfo('nocoord', '⚠️ จุดนี้ยังไม่ได้ตั้งพิกัด GPS');
+    return;
   }
   setGPSBadge('checking', '📡 กำลังหา...');
   showGPSInfo('checking', 'กำลังตรวจสอบตำแหน่ง GPS...');
@@ -698,21 +639,18 @@ function onGPSUpdate(pos, cp) {
     S.gpsOk = true;
     setGPSBadge('ok', `✅ ${dist} ม.`);
     showGPSInfo('ok', `✅ อยู่ในระยะ ${dist} เมตร จากจุดตรวจ`);
-    unlockPhoto();
     stopGPS();
   } else {
     S.gpsOk = false;
     setGPSBadge('fail', `❌ ${dist} ม.`);
     showGPSInfo('fail', `❌ ห่างจากจุดตรวจ ${dist} เมตร (ต้องอยู่ใน ${GPS_RADIUS_M} ม.)`);
-    lockPhoto('อยู่ไกลเกินไป', `ห่างจากจุดตรวจ ${dist} เมตร\nต้องอยู่ในระยะ ${GPS_RADIUS_M} เมตร`);
   }
 }
 
 function onGPSError(err) {
   const msgs = {1:'ปฏิเสธการเข้าถึง GPS', 2:'ไม่สามารถหาตำแหน่งได้', 3:'หมดเวลา GPS'};
   setGPSBadge('na', '📡 Error');
-  showGPSInfo('nocoord', `⚠️ GPS: ${msgs[err.code] || err.message} — ข้ามการตรวจระยะ`);
-  unlockPhoto();
+  showGPSInfo('nocoord', `⚠️ GPS: ${msgs[err.code] || err.message}`);
 }
 
 function retryGPS() {
@@ -720,35 +658,7 @@ function retryGPS() {
   if (gpsTargetCp) { stopGPS(); startGPSWatch(gpsTargetCp); }
 }
 
-function lockPhoto(title = 'รอตรวจสอบ GPS', sub = '') {
-  if (S.photoBase64) return;
-  const pz = document.getElementById('photo-zone');
-  pz.className = 'photo-zone locked';
-  pz.innerHTML = `<div class="photo-zone-icon">🔒</div>
-    <div class="photo-zone-title">${title}</div>
-    <div class="photo-zone-sub">${sub || 'ต้องอยู่ในระยะ ' + GPS_RADIUS_M + ' เมตรจากจุดตรวจ'}</div>`;
-  pz.onclick = () => {
-    if (S.gpsDist !== null) {
-      document.getElementById('ov-gps-dist').textContent = S.gpsDist + ' ม.';
-      const pct = Math.min(100, Math.round((GPS_RADIUS_M / Math.max(S.gpsDist, 1)) * 100));
-      document.getElementById('ov-gps-fill').style.width      = pct + '%';
-      document.getElementById('ov-gps-fill').style.background = pct >= 80 ? 'var(--amber)' : 'var(--red)';
-      show('ov-gps');
-    }
-  };
-  checkReady();
-}
 
-function unlockPhoto() {
-  if (S.photoBase64) return;
-  const pz = document.getElementById('photo-zone');
-  pz.className = 'photo-zone';
-  pz.innerHTML = `<div class="photo-zone-icon">📸</div>
-    <div class="photo-zone-title">แตะเพื่อถ่ายรูป</div>
-    <div class="photo-zone-sub">ถ่ายรูปหลักฐานที่จุดตรวจ</div>`;
-  pz.onclick = triggerPhoto;
-  checkReady();
-}
 
 function setGPSBadge(type, text) {
   const b = document.getElementById('gps-badge');
@@ -765,9 +675,10 @@ function showGPSInfo(type, text) {
 }
 
 // ════════════════════════════════════════════════════
-// QR SCANNER
+// QR SCANNER — [FIX] cleanup ถูกต้องก่อนเปิดใหม่
 // ════════════════════════════════════════════════════
 function startQR() {
+  // [FIX] หยุด scanner เก่าก่อนเสมอ เพื่อป้องกัน camera ค้าง
   stopQR().then(() => {
     hide('qr-idle');
     show('qr-scan');
@@ -786,6 +697,7 @@ function startQR() {
   });
 }
 
+// [FIX] stopQR คืน Promise เสมอ
 function stopQR() {
   if (!qrScanner) return Promise.resolve();
   const sc = qrScanner;
@@ -812,7 +724,6 @@ function onQRSuccess(decoded) {
       document.getElementById('qr-cp-name').textContent = S.cpName;
       document.getElementById('qr-cp-id').textContent   = raw;
       setSbar('sbar1', 'warning', '⚠️ QR Code ไม่ตรงกับรายการในระบบ — บันทึกได้แต่ตรวจ GPS ไม่ได้');
-      unlockPhoto();
     }
     show('qr-ok');
     checkReady();
@@ -827,66 +738,7 @@ function rescanQR() {
   startQR();
 }
 
-// ════════════════════════════════════════════════════
-// PHOTO
-// ════════════════════════════════════════════════════
-function triggerPhoto() {
-  const pz = document.getElementById('photo-zone');
-  if (pz.classList.contains('locked')) return;
-  document.getElementById('photo-input').click();
-}
 
-function handlePhoto(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = evt => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > MAX_IMG_PX || h > MAX_IMG_PX) {
-        if (w >= h) { h = Math.round(h * MAX_IMG_PX / w); w = MAX_IMG_PX; }
-        else        { w = Math.round(w * MAX_IMG_PX / h); h = MAX_IMG_PX; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-
-      let quality = IMG_QUALITY;
-      let dataUrl = canvas.toDataURL('image/jpeg', quality);
-
-      const TARGET_B64 = 300_000;
-      while (dataUrl.length > TARGET_B64 && quality > 0.25) {
-        quality = Math.max(0.25, quality - 0.08);
-        dataUrl  = canvas.toDataURL('image/jpeg', quality);
-      }
-      if (dataUrl.length > TARGET_B64) {
-        const scale = Math.sqrt(TARGET_B64 / dataUrl.length);
-        const c2    = document.createElement('canvas');
-        c2.width    = Math.round(w * scale);
-        c2.height   = Math.round(h * scale);
-        c2.getContext('2d').drawImage(canvas, 0, 0, c2.width, c2.height);
-        dataUrl     = c2.toDataURL('image/jpeg', 0.6);
-      }
-
-      S.photoMime   = 'image/jpeg';
-      S.photoBase64 = dataUrl.split(',')[1];
-
-      const kb = Math.round(dataUrl.length * 0.75 / 1024);
-      const pz = document.getElementById('photo-zone');
-      pz.className = 'photo-zone has-photo';
-      pz.innerHTML = `<img src="${dataUrl}" alt="หลักฐาน">
-        <div class="photo-retake" onclick="triggerPhoto()">📷 ถ่ายใหม่ (~${kb}KB)</div>`;
-      pz.onclick = null;
-      checkReady();
-    };
-    img.onerror = () => setSbar('sbar1', 'error', '❌ โหลดรูปไม่ได้ ลองถ่ายใหม่อีกครั้ง');
-    img.src = evt.target.result;
-  };
-  reader.onerror = () => setSbar('sbar1', 'error', '❌ อ่านไฟล์ไม่ได้ ลองถ่ายใหม่อีกครั้ง');
-  reader.readAsDataURL(file);
-  e.target.value = '';
-}
 
 // ════════════════════════════════════════════════════
 // STATUS & VALIDATION
@@ -911,7 +763,6 @@ function setStatus(val) {
 function checkReady() {
   const notes = document.getElementById('f-notes').value.trim();
   const ok = !!S.cpId &&
-             !!S.photoBase64 &&
              !!S.status &&
              (S.status !== 'abnormal' || notes.length >= 3);
   document.getElementById('btn-confirm').disabled = !ok;
@@ -938,22 +789,16 @@ function goConfirm() {
     : 'ไม่มีพิกัด / ข้าม GPS';
   document.getElementById('c-gps').textContent = gpsStr;
 
-  if (S.photoBase64) {
-    document.getElementById('c-photo').src = `data:${S.photoMime};base64,${S.photoBase64}`;
-    show('c-photo'); hide('c-no-photo');
-  } else {
-    hide('c-photo'); show('c-no-photo');
-  }
+
   showSec('confirm');
 }
 
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT
-// Step 1: GET guard_checkin (ไม่มีรูป)
-// Step 2: POST upload_photo JSON body
-// Step 3: GET guard_tour_complete (ถ้าครบทุกจุด)
+// SUBMIT — v2.3
+// Step 1: GET guard_checkin
+// Step 2: GET guard_tour_complete (ส่งทันที ทีละจุด)
 // ════════════════════════════════════════════════════
 async function submitCheck() {
   if (S.submitting) return;
@@ -968,7 +813,7 @@ async function submitCheck() {
   const timestamp = new Date().toISOString();
 
   try {
-    // ══ Step 1: บันทึกข้อมูลหลักผ่าน GET ══════════════════════════
+    // ══ Step 1: บันทึกข้อมูลหลักผ่าน GET ════════════════════════
     btn.textContent = '⏳ กำลังบันทึก... (1/2)';
     const res = await gasGetCall({
       action:         'guard_checkin',
@@ -989,28 +834,17 @@ async function submitCheck() {
       throw new Error(res?.message || 'บันทึกข้อมูลไม่สำเร็จ');
     }
 
-    // ══ Step 2: ส่งรูปผ่าน POST JSON ════════════════════════════
-    if (S.photoBase64) {
-      btn.textContent = '⏳ กำลังส่งรูป... (2/2)';
-      try {
-        await gasPostCall({
-          action:       'upload_photo',
-          tourId:       S.tourId,
-          checkpointId: S.cpId,
-          timestamp:    timestamp,
-          imageBase64:  S.photoBase64,
-          imageMime:    S.photoMime || 'image/jpeg',
-        }, 60000);
-      } catch(photoErr) {
-        // รูปส่งไม่ได้ไม่ถือว่า fatal
-        console.warn('photo upload failed (non-fatal):', photoErr.message);
-      }
-    }
 
-    // ══ สำเร็จ ══════════════════════════════════════════════════
+
+    // ══ บันทึก state ══════════════════════════════════════════
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
 
+    // ══ Step 2: ส่งสรุปรอบตรวจทันที ════════════════════════════
+    btn.textContent = '⏳ ส่งรายงาน... (2/2)';
+    await sendTourSummaryNow();
+
+    // ══ แสดงผลสำเร็จ ════════════════════════════════════════
     const done      = Object.keys(S.checked).length;
     const total     = CHECKPOINTS.length;
     const remaining = total - done;
@@ -1029,9 +863,35 @@ async function submitCheck() {
   }
 }
 
+// [v2.2] ส่งสรุปทีละจุด ทันทีหลัง checkin สำเร็จแต่ละครั้ง
+async function sendTourSummaryNow() {
+  try {
+    const summary = Object.entries(S.checked).map(([id, v]) => ({
+      checkpointId:   id,
+      checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
+      status:         v.status,
+      notes:          v.notes || '',
+      timestamp:      v.timestamp,
+    }));
+    await gasGetCall({
+      action:        'guard_tour_complete',
+      tourId:        S.tourId        || '',
+      userId:        S.userId        || '',
+      guardName:     S.userName      || '',
+      tourStartTime: S.tourStart     || '',
+      tourEndTime:   new Date().toISOString(),
+      shiftId:       S.shiftId != null ? String(S.shiftId) : '',
+      summary:       JSON.stringify(summary),
+    }, 30000);
+  } catch(e) {
+    console.warn('sendTourSummaryNow failed (non-fatal):', e.message);
+  }
+}
+
 function afterSuccess() {
   hideOv('ov-ok');
-  if (CHECKPOINTS.every(cp => S.checked[cp.id])) { triggerTourComplete(); return; }
+  // [v2.2] กลับหน้า home เสมอ — สรุปส่งไปแล้วทีละจุดใน submitCheck
+  // ถ้าครบทุกจุดแสดงปุ่ม "จบรอบ" ใน renderHome แทน
   renderHome();
 }
 
@@ -1049,79 +909,11 @@ function endTourManual() {
   triggerTourComplete();
 }
 
-// ════════════════════════════════════════════════════
-// [FIX v2.4] triggerTourComplete
-// - แสดง ov-sending ระหว่างรอ ไม่ให้ UI ดูเหมือนค้าง
-// - step indicators อัปเดตตามขั้นตอนจริง
-// ════════════════════════════════════════════════════
-function setStep(id, state) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.className = 'ov-step ' + state;
-  if (state === 'active') {
-    el.querySelector('.ov-step-icon').innerHTML =
-      '<span class="ov-step-spin" style="width:14px;height:14px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;display:inline-block"></span>';
-  } else if (state === 'done') {
-    el.querySelector('.ov-step-icon').textContent = '✅';
-  }
-}
-
+// [v2.2] triggerTourComplete: ส่งสรุปรอบสุดท้าย แล้วแสดงหน้า done
+// (ปกติสรุปถูกส่งทีละจุดใน submitCheck แล้ว — ฟังก์ชันนี้ใช้เมื่อกดปุ่ม "จบรอบ" เท่านั้น)
 async function triggerTourComplete() {
   stopGPS();
-
-  // แสดง overlay "กำลังส่งรายงาน"
-  ['step-compile','step-send','step-done'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.className = 'ov-step';
-  });
-  // reset icons
-  document.getElementById('step-compile').querySelector('.ov-step-icon').textContent = '📋';
-  document.getElementById('step-send').querySelector('.ov-step-icon').textContent    = '📤';
-  document.getElementById('step-done').querySelector('.ov-step-icon').textContent    = '✅';
-  document.getElementById('ov-sending-sub').textContent = 'กรุณารอสักครู่';
-  show('ov-sending');
-
-  // Step 1: ประมวลผล summary
-  setStep('step-compile', 'active');
-  await new Promise(r => setTimeout(r, 300)); // ให้ UI render ก่อน
-
-  const summary = Object.entries(S.checked).map(([id, v]) => ({
-    checkpointId:   id,
-    checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
-    status:         v.status,
-    notes:          v.notes || '',
-    timestamp:      v.timestamp,
-  }));
-  setStep('step-compile', 'done');
-
-  // Step 2: ส่งรายงาน
-  setStep('step-send', 'active');
-  document.getElementById('ov-sending-sub').textContent = 'กำลังส่งรายงานไป LINE...';
-
-  try {
-    await gasGetCall({
-      action:        'guard_tour_complete',
-      tourId:        S.tourId        || '',
-      userId:        S.userId        || '',
-      guardName:     S.userName      || '',
-      tourStartTime: S.tourStart     || '',
-      tourEndTime:   new Date().toISOString(),
-      summary:       JSON.stringify(summary),
-    }, 35000);
-  } catch(err) {
-    // ล้มเหลวก็แสดงผลสำเร็จต่อไป (GAS อาจ timeout แต่ส่งได้แล้ว)
-    console.warn('tour_complete call failed (non-fatal):', err.message);
-  }
-
-  setStep('step-send', 'done');
-
-  // Step 3: เสร็จ
-  setStep('step-done', 'done');
-  document.getElementById('ov-sending-sub').textContent = 'ส่งรายงานเรียบร้อย!';
-  await new Promise(r => setTimeout(r, 600));
-
-  // ซ่อน ov-sending แล้วแสดง ov-done
-  hideOv('ov-sending');
+  await sendTourSummaryNow(); // ส่งสรุปล่าสุดอีกครั้งในฐานะ "รอบสมบูรณ์"
 
   const done     = Object.keys(S.checked).length;
   const total    = CHECKPOINTS.length;
@@ -1140,6 +932,7 @@ function showSec(name) {
   ['home','check','confirm'].forEach(s => {
     document.getElementById('sec-' + s).classList.toggle('hidden', s !== name);
   });
+  // [FIX] หยุด QR และ GPS เสมอเมื่อออกจาก check section
   if (name !== 'check') { stopQR(); stopGPS(); }
   window.scrollTo(0, 0);
 }
