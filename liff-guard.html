@@ -465,7 +465,9 @@ async function init() {
 }
 
 async function apiFetch(url, opts) {
-  const res  = await fetch(url, opts);
+  // GAS ต้องการ mode:'cors' และไม่ต้องใส่ Content-Type สำหรับ GET
+  const fetchOpts = opts ? { ...opts } : {};
+  const res  = await fetch(url, fetchOpts);
   const text = await res.text();
   try { return JSON.parse(text); }
   catch(_) { throw new Error('ตอบกลับไม่ใช่ JSON: ' + text.substring(0, 80)); }
@@ -923,28 +925,44 @@ function backToCheck() { showSec('check'); }
 // SUBMIT — แยกส่งข้อมูลและรูปภาพ (แก้ Load failed)
 // ════════════════════════════════════════════════════
 
-// ส่ง POST พร้อม timeout และ retry อัตโนมัติ
+// ── POST ไปยัง GAS โดยหลีกเลี่ยง CORS preflight ──────────────────────────────
+// วิธีที่ใช้งานได้จริงกับ GAS: ส่ง JSON เป็น field "payload" แบบ form-urlencoded
+// GAS doPost อ่านได้จาก e.parameter.payload หรือ e.postData.contents
 async function postWithRetry(payload, maxRetry = 2) {
   let lastErr;
   for (let attempt = 0; attempt <= maxRetry; attempt++) {
     try {
-      const ctrl = new AbortController();
-      const tid  = setTimeout(() => ctrl.abort(), 30000); // timeout 30s
-      const res  = await fetch(GAS_URL, {
+      const ctrl    = new AbortController();
+      const tid     = setTimeout(() => ctrl.abort(), 45000); // 45s timeout
+
+      // ใช้ FormData — ไม่ trigger preflight OPTIONS บน GAS
+      const form = new FormData();
+      form.append('payload', JSON.stringify(payload));
+
+      const res = await fetch(GAS_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body:   form,
         signal: ctrl.signal,
+        redirect: 'follow',   // GAS redirect 302 ต้องให้ follow
       });
       clearTimeout(tid);
+
       const text = await res.text();
-      try { return JSON.parse(text); }
-      catch(_) { throw new Error('Server ตอบกลับผิดรูปแบบ: ' + text.substring(0, 100)); }
+      try {
+        return JSON.parse(text);
+      } catch(_) {
+        // GAS บางครั้ง redirect แล้วตอบ HTML — ลอง parse หา JSON ใน body
+        const match = text.match(/\{[\s\S]*\}/);
+        if (match) return JSON.parse(match[0]);
+        throw new Error('ตอบกลับผิดรูปแบบ: ' + text.substring(0, 120));
+      }
     } catch(e) {
       lastErr = e;
+      if (e.name === 'AbortError') {
+        lastErr = new Error('หมดเวลาเชื่อมต่อ (45s) — เน็ตช้าหรือรูปใหญ่เกิน');
+      }
       if (attempt < maxRetry) {
-        // รอ 2s แล้ว retry
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 2500 * (attempt + 1)));
       }
     }
   }
