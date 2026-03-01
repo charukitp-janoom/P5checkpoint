@@ -89,15 +89,20 @@ body { font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text)
 
 /* ══════════════════ CHECKPOINT LIST ══════════════════ */
 .cp-list { display:flex; flex-direction:column; gap:6px; }
-.cp-item { display:flex; align-items:center; gap:10px; padding:11px 13px; background:var(--surface2); border:1px solid var(--border2); border-radius:11px; }
+.cp-item { display:flex; align-items:center; gap:10px; padding:11px 13px; background:var(--surface2); border:1px solid var(--border2); border-radius:11px; cursor:pointer; transition:all .18s; user-select:none; }
+.cp-item:active   { transform:scale(.98); }
+.cp-item.pending:hover  { border-color:rgba(245,158,11,.5); background:rgba(245,158,11,.05); }
 .cp-item.done     { border-color:rgba(34,197,94,.35); background:rgba(34,197,94,.04); }
+.cp-item.done:hover     { border-color:rgba(34,197,94,.6); background:rgba(34,197,94,.08); }
 .cp-item.abnormal { border-color:rgba(239,68,68,.35);  background:rgba(239,68,68,.04); }
+.cp-item.abnormal:hover { border-color:rgba(239,68,68,.6); background:rgba(239,68,68,.08); }
 .cp-num  { width:28px; height:28px; border-radius:8px; background:var(--surface3); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; font-family:'IBM Plex Mono',monospace; color:var(--muted); flex-shrink:0; }
 .cp-item.done .cp-num     { background:rgba(34,197,94,.2); color:var(--green); }
 .cp-item.abnormal .cp-num { background:rgba(239,68,68,.2); color:var(--red); }
 .cp-name   { font-size:14px; font-weight:600; }
 .cp-loc    { font-size:11px; color:var(--muted); margin-top:1px; }
-.cp-status { margin-left:auto; font-size:20px; }
+.cp-status { margin-left:auto; font-size:20px; flex-shrink:0; }
+.cp-tap-hint { font-size:10px; color:var(--amber); margin-top:2px; font-weight:600; letter-spacing:.3px; }
 
 /* ══════════════════ QR SCANNER ══════════════════ */
 .qr-idle { display:flex; flex-direction:column; align-items:center; gap:11px; padding:28px 18px; background:var(--surface2); border:2px dashed var(--border2); border-radius:13px; cursor:pointer; }
@@ -219,7 +224,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
   <div class="ov-icon ok">✅</div>
   <div class="ov-title green">บันทึกสำเร็จ!</div>
   <div class="ov-sub" id="ov-ok-msg"></div>
-  <button class="btn btn-primary"   style="max-width:280px;margin-top:6px" onclick="afterSuccess()">▶ ตรวจจุดถัดไป</button>
+  <button class="btn btn-primary"   style="max-width:280px;margin-top:6px" onclick="afterSuccess()">← กลับเลือกจุดตรวจ</button>
   <button class="btn btn-secondary" style="max-width:280px" onclick="endTourManual()">🏁 จบรอบตรวจ</button>
 </div>
 
@@ -255,7 +260,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
         <div class="dots" id="dots"></div>
       </div>
       <div class="card">
-        <div class="card-hdr">📋 จุดตรวจทั้งหมด</div>
+        <div class="card-hdr">📋 จุดตรวจทั้งหมด <span style="margin-left:auto;font-size:11px;color:var(--amber);font-weight:600">แตะจุดไหนก็ได้</span></div>
         <div class="card-body">
           <div class="cp-list" id="cp-list"></div>
           <button class="btn btn-primary" id="btn-start" onclick="startTour()">🚀 เริ่มรอบตรวจ</button>
@@ -265,6 +270,14 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 
     <!-- ════ CHECK ════ -->
     <div id="sec-check" class="hidden">
+      <!-- back bar -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <button onclick="goBackHome()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:10px;padding:7px 14px;font-family:'Sarabun',sans-serif;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">
+          ← รายชื่อจุดตรวจ
+        </button>
+        <div style="font-size:14px;font-weight:700;color:var(--amber)" id="sec-check-title">—</div>
+      </div>
+
       <div class="sbar hidden" id="sbar1"></div>
 
       <div class="gps-info hidden" id="gps-info">
@@ -468,18 +481,34 @@ function renderHome() {
   const list = document.getElementById('cp-list');
   list.innerHTML = '';
   CHECKPOINTS.forEach((cp, i) => {
-    const rec  = S.checked[cp.id];
-    const cls  = rec ? (rec.status === 'abnormal' ? 'abnormal' : 'done') : '';
-    const icon = rec ? (rec.status === 'abnormal' ? '⚠️' : '✅') : cp.icon || '📍';
-    const sub  = rec
-      ? `ตรวจแล้ว · ${rec.status === 'normal' ? 'ปกติ' : 'ผิดปกติ'}`
+    const rec     = S.checked[cp.id];
+    const isDone  = !!rec;
+    const isAbnormal = rec && rec.status === 'abnormal';
+    const cls     = isDone ? (isAbnormal ? 'abnormal' : 'done') : 'pending';
+    const icon    = isDone ? (isAbnormal ? '⚠️' : '✅') : '▶';
+    const sub     = isDone
+      ? `ตรวจแล้ว · ${isAbnormal ? 'ผิดปกติ' : 'ปกติ'}`
       : (cp.lat ? cp.location : cp.location + ' · ไม่มีพิกัด GPS');
-    list.innerHTML += `
-      <div class="cp-item ${cls}">
-        <div class="cp-num">${String(i+1).padStart(2,'0')}</div>
-        <div><div class="cp-name">${cp.name}</div><div class="cp-loc">${sub}</div></div>
-        <div class="cp-status">${icon}</div>
-      </div>`;
+    const hint    = isDone
+      ? '<div class="cp-tap-hint">แตะเพื่อตรวจซ้ำ</div>'
+      : '<div class="cp-tap-hint">แตะเพื่อตรวจ →</div>';
+
+    const div = document.createElement('div');
+    div.className = `cp-item ${cls}`;
+    div.innerHTML = `
+      <div class="cp-num">${String(i+1).padStart(2,'0')}</div>
+      <div style="flex:1;min-width:0">
+        <div class="cp-name">${cp.name}</div>
+        <div class="cp-loc">${sub}</div>
+        ${S.tourId ? hint : ''}
+      </div>
+      <div class="cp-status">${icon}</div>`;
+
+    // แตะเพื่อเลือกจุดตรวจ (เฉพาะเมื่อเริ่มรอบแล้ว)
+    if (S.tourId) {
+      div.addEventListener('click', () => openCheckFor(cp));
+    }
+    list.appendChild(div);
   });
 
   const done = Object.keys(S.checked).length;
@@ -498,9 +527,20 @@ function renderHome() {
   }
 
   const btn = document.getElementById('btn-start');
-  btn.disabled   = false;
-  btn.textContent = S.tourId ? '📍 ตรวจจุดถัดไป' : '🚀 เริ่มรอบตรวจ';
-  btn.onclick    = S.tourId ? nextCheckpoint : startTour;
+  btn.disabled = false;
+
+  const remaining = CHECKPOINTS.filter(cp => !S.checked[cp.id]).length;
+  if (!S.tourId) {
+    btn.textContent = '🚀 เริ่มรอบตรวจ';
+    btn.onclick = startTour;
+  } else if (remaining > 0) {
+    btn.textContent = `📍 ตรวจจุดถัดไปอัตโนมัติ (${remaining} จุด)`;
+    btn.onclick = nextCheckpoint;
+  } else {
+    btn.textContent = '🏁 จบรอบตรวจ';
+    btn.onclick = triggerTourComplete;
+  }
+
   showSec('home');
 }
 
@@ -508,8 +548,8 @@ function startTour() {
   S.tourId    = 'TOUR-' + Date.now().toString(36).toUpperCase();
   S.tourStart = new Date().toISOString();
   S.checked   = {};
-  renderHome();
-  nextCheckpoint();
+  renderHome(); // อัปเดต UI ให้แสดง hint ก่อน
+  // ไม่บังคับไปจุดแรก — ให้ยามเลือกเองหรือกดปุ่มถัดไป
 }
 
 function nextCheckpoint() {
@@ -532,10 +572,19 @@ function openCheckFor(cp) {
   resetCheck();
   S.cpId   = cp.id;
   S.cpName = cp.name;
+  const idx = CHECKPOINTS.findIndex(c => c.id === cp.id);
+  document.getElementById('sec-check-title').textContent =
+    `จุดที่ ${String(idx+1).padStart(2,'0')} — ${cp.name}`;
   clearSbar('sbar1');
   clearSbar('sbar2');
   showSec('check');
   startGPSWatch(cp);
+}
+
+function goBackHome() {
+  stopQR();
+  stopGPS();
+  renderHome();
 }
 
 function resetCheck() {
@@ -891,10 +940,12 @@ async function submitCheck() {
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
 
-    const done  = Object.keys(S.checked).length;
-    const total = CHECKPOINTS.length;
+    const done      = Object.keys(S.checked).length;
+    const total     = CHECKPOINTS.length;
+    const remaining = total - done;
     document.getElementById('ov-ok-msg').textContent =
       `${S.cpName}\nตรวจแล้ว ${done}/${total} จุด` +
+      (remaining > 0 ? `\nยังเหลืออีก ${remaining} จุด` : '\n🎉 ครบทุกจุดแล้ว!') +
       (S.status === 'abnormal' ? '\n⚠️ แจ้ง Supervisor แล้ว' : '');
     show('ov-ok');
   } catch(e) {
@@ -908,12 +959,26 @@ async function submitCheck() {
 
 function afterSuccess() {
   hideOv('ov-ok');
-  if (CHECKPOINTS.every(cp => S.checked[cp.id])) { triggerTourComplete(); return; }
-  nextCheckpoint();
+  // กลับหน้า Home ให้ยามเลือกจุดถัดไปเอง
+  // ถ้าตรวจครบทุกจุดแล้ว → จบรอบ
+  if (CHECKPOINTS.every(cp => S.checked[cp.id])) {
+    triggerTourComplete();
+    return;
+  }
+  renderHome();
 }
 
 function endTourManual() {
   hideOv('ov-ok');
+  const done  = Object.keys(S.checked).length;
+  const total = CHECKPOINTS.length;
+  if (done < total) {
+    const remaining = total - done;
+    if (!confirm(`ยังมีจุดตรวจที่ยังไม่ได้ตรวจอีก ${remaining} จุด\nต้องการจบรอบเลยหรือไม่?`)) {
+      renderHome();
+      return;
+    }
+  }
   triggerTourComplete();
 }
 
