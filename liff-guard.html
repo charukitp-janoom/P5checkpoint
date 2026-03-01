@@ -921,12 +921,10 @@ function goConfirm() {
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT — ใช้ fetch() GET เท่านั้น (proven ใช้งานได้บน iOS LINE)
-// fetch() GET ไม่มี CORS preflight + follow redirect อัตโนมัติ
-// รูปภาพบีบอัดแล้วส่งแยกเป็น GET อีก request
+// SUBMIT — แยก GET และ POST อย่างชัดเจนเพื่อแก้ปัญหา URL ยาว
 // ════════════════════════════════════════════════════
 
-// fetch GET ไปยัง GAS — เหมือน apiFetch แต่รับ params object
+// 1. fetch GET สำหรับส่งข้อมูลธรรมดา
 async function gasCall(params, timeoutMs = 40000) {
   const url  = GAS_URL + '?' + new URLSearchParams(params).toString();
   const ctrl = new AbortController();
@@ -944,6 +942,30 @@ async function gasCall(params, timeoutMs = 40000) {
   }
 }
 
+// 2. fetch POST สำหรับส่งรูปภาพ (แก้ปัญหาค้างตอนส่งรูป)
+async function gasPost(params) {
+  const formData = new URLSearchParams(params);
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 60000); // ให้เวลาส่งรูป 60 วินาที
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: formData,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      redirect: 'follow',
+      signal: ctrl.signal
+    });
+    const text = await res.text();
+    clearTimeout(tid);
+    try { return JSON.parse(text); }
+    catch(_) { throw new Error('ตอบกลับผิดรูปแบบ (POST)'); }
+  } catch(e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('หมดเวลาส่งรูปภาพ (60s)');
+    throw e;
+  }
+}
+
 async function submitCheck() {
   if (S.submitting) return;
   S.submitting = true;
@@ -957,7 +979,7 @@ async function submitCheck() {
   const timestamp = new Date().toISOString();
 
   try {
-    // ══ Step 1: บันทึกข้อมูลหลัก (ไม่มีรูป) ════════════════
+    // ══ Step 1: บันทึกข้อมูลหลัก (GET ปกติ) ════════════════
     btn.textContent = '⏳ กำลังบันทึก... (1/2)';
     const res = await gasCall({
       action:         'guard_checkin',
@@ -979,26 +1001,21 @@ async function submitCheck() {
       throw new Error(res?.message || 'บันทึกข้อมูลไม่สำเร็จ');
     }
 
-    // ══ Step 2: ส่งรูปแยก ════════════════════════════════════
+    // ══ Step 2: ส่งรูปแยก (แก้เป็น POST แล้ว!) ════════════════
     if (S.photoBase64) {
       btn.textContent = '⏳ กำลังส่งรูป... (2/2)';
       try {
-        // รูปอาจยาวเกิน URL limit → บีบให้ขนาดเล็กสุดก่อนส่ง
         let b64 = S.photoBase64;
-        // ถ้ายาวเกิน 250KB หลัง encode → resize ลงอีก
-        if (b64.length > 250000) {
-          b64 = await recompressPhoto(b64, 400, 0.45);
-        }
-        await gasCall({
+        await gasPost({
           action:       'upload_photo',
           tourId:       S.tourId,
           checkpointId: S.cpId,
           timestamp:    timestamp,
           imageBase64:  b64,
           imageMime:    'image/jpeg',
-        }, 50000);
+        });
       } catch(photoErr) {
-        // รูปส่งไม่ได้ไม่ถือว่า fatal — ข้อมูลบันทึกแล้ว
+        // รูปส่งไม่ได้ไม่ถือว่า fatal — ข้อมูลบันทึกแล้ว จะเตือนให้รู้เฉยๆ
         console.warn('photo upload failed (non-fatal):', photoErr.message);
       }
     }
@@ -1023,27 +1040,6 @@ async function submitCheck() {
   } finally {
     S.submitting = false;
   }
-}
-
-// บีบรูปให้เล็กลงอีก สำหรับส่งผ่าน GET URL
-function recompressPhoto(base64, maxPx, quality) {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxPx || h > maxPx) {
-        if (w >= h) { h = Math.round(h * maxPx / w); w = maxPx; }
-        else        { w = Math.round(w * maxPx / h); h = maxPx; }
-      }
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      const dataUrl = c.toDataURL('image/jpeg', quality);
-      resolve(dataUrl.split(',')[1]);
-    };
-    img.onerror = () => resolve(base64); // fallback: ส่งของเดิม
-    img.src = 'data:image/jpeg;base64,' + base64;
-  });
 }
 
 function afterSuccess() {
