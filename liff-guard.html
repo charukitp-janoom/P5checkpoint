@@ -396,11 +396,12 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 // ════════════════════════════════════════════════════
 // CONFIG — แก้ไขให้ตรงกับของคุณ
 // ════════════════════════════════════════════════════
-const GAS_URL  = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg-YEFaDUUahLcMqoGp1TzJJ6uS_ACCuKorrm38Ww21NPB4TV94kQ/exec';   // ← เปลี่ยนหลัง Deploy
-const LIFF_ID  = '2009191893-YFzSE10x';        // ← เปลี่ยนเป็น LIFF ID ของคุณ
-const GPS_RADIUS_M = 50;                      // ← รัศมี GPS (เมตร)
-const MAX_IMG_PX   = 1024;                   // ← ขนาดสูงสุดของรูป (pixel)
-const IMG_QUALITY  = 0.72;                   // ← คุณภาพ JPEG (0–1)
+const GAS_URL      = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg-YEFaDUUahLcMqoGp1TzJJ6uS_ACCuKorrm38Ww21NPB4TV94kQ/exec';   // ← เปลี่ยนหลัง Deploy
+const LIFF_ID      = '2009191893-YFzSE10x';        // ← เปลี่ยนเป็น LIFF ID ของคุณ
+const GPS_RADIUS_M = 50;                          // ← รัศมี GPS (เมตร)
+const MAX_IMG_PX   = 800;                         // ← ลดจาก 1024 → 800px ป้องกัน payload ใหญ่เกิน
+const IMG_QUALITY  = 0.65;                        // ← ลดจาก 0.72 → 0.65
+const MAX_B64_BYTES = 600_000;                    // ← จำกัดขนาด base64 ~450KB (GAS limit ~50MB แต่ใช้น้อยกว่านั้น)
 
 let CHECKPOINTS = [];   // โหลดจาก Google Sheets
 
@@ -809,8 +810,9 @@ function handlePhoto(e) {
 
   const reader = new FileReader();
   reader.onload = evt => {
-    const img  = new Image();
+    const img = new Image();
     img.onload = () => {
+      // Resize ให้ไม่เกิน MAX_IMG_PX
       let w = img.width, h = img.height;
       if (w > MAX_IMG_PX || h > MAX_IMG_PX) {
         if (w >= h) { h = Math.round(h * MAX_IMG_PX / w); w = MAX_IMG_PX; }
@@ -820,19 +822,38 @@ function handlePhoto(e) {
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
 
-      const dataUrl    = canvas.toDataURL('image/jpeg', IMG_QUALITY);
-      S.photoMime      = 'image/jpeg';
-      S.photoBase64    = dataUrl.split(',')[1];
+      // Compress ลดคุณภาพจนขนาด base64 ไม่เกิน MAX_B64_BYTES
+      let quality = IMG_QUALITY;
+      let dataUrl = canvas.toDataURL('image/jpeg', quality);
 
+      while (dataUrl.length > MAX_B64_BYTES && quality > 0.25) {
+        quality = Math.max(0.25, quality - 0.1);
+        dataUrl = canvas.toDataURL('image/jpeg', quality);
+      }
+
+      // ถ้ายังใหญ่เกิน → Resize ลงอีก 60%
+      if (dataUrl.length > MAX_B64_BYTES) {
+        const c2 = document.createElement('canvas');
+        c2.width = Math.round(w * 0.6); c2.height = Math.round(h * 0.6);
+        c2.getContext('2d').drawImage(canvas, 0, 0, c2.width, c2.height);
+        dataUrl = c2.toDataURL('image/jpeg', 0.6);
+      }
+
+      S.photoMime   = 'image/jpeg';
+      S.photoBase64 = dataUrl.split(',')[1];
+
+      const kb = Math.round(dataUrl.length * 0.75 / 1024);
       const pz = document.getElementById('photo-zone');
       pz.className = 'photo-zone has-photo';
       pz.innerHTML = `<img src="${dataUrl}" alt="หลักฐาน">
-        <div class="photo-retake" onclick="triggerPhoto()">📷 ถ่ายใหม่</div>`;
+        <div class="photo-retake" onclick="triggerPhoto()">📷 ถ่ายใหม่ (~${kb}KB)</div>`;
       pz.onclick = null;
       checkReady();
     };
+    img.onerror = () => setSbar('sbar1', 'error', '❌ โหลดรูปไม่ได้ ลองถ่ายใหม่อีกครั้ง');
     img.src = evt.target.result;
   };
+  reader.onerror = () => setSbar('sbar1', 'error', '❌ อ่านไฟล์ไม่ได้ ลองถ่ายใหม่อีกครั้ง');
   reader.readAsDataURL(file);
   e.target.value = '';
 }
@@ -899,14 +920,43 @@ function goConfirm() {
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT
+// SUBMIT — แยกส่งข้อมูลและรูปภาพ (แก้ Load failed)
 // ════════════════════════════════════════════════════
+
+// ส่ง POST พร้อม timeout และ retry อัตโนมัติ
+async function postWithRetry(payload, maxRetry = 2) {
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetry; attempt++) {
+    try {
+      const ctrl = new AbortController();
+      const tid  = setTimeout(() => ctrl.abort(), 30000); // timeout 30s
+      const res  = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+      });
+      clearTimeout(tid);
+      const text = await res.text();
+      try { return JSON.parse(text); }
+      catch(_) { throw new Error('Server ตอบกลับผิดรูปแบบ: ' + text.substring(0, 100)); }
+    } catch(e) {
+      lastErr = e;
+      if (attempt < maxRetry) {
+        // รอ 2s แล้ว retry
+        await new Promise(r => setTimeout(r, 2000));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 async function submitCheck() {
   if (S.submitting) return;
   S.submitting = true;
 
   const btn = document.getElementById('btn-submit');
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = '⏳ กำลังบันทึก...';
   clearSbar('sbar2');
 
@@ -914,28 +964,51 @@ async function submitCheck() {
   const timestamp = new Date().toISOString();
 
   try {
-    const res = await apiFetch(GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:       'guard_checkin',
-        tourId:       S.tourId,
-        userId:       S.userId,
-        guardName:    S.userName,
-        checkpointId: S.cpId,
-        checkpointName: S.cpName,
-        status:       S.status,
-        notes,
-        imageBase64:  S.photoBase64,
-        imageMime:    S.photoMime || 'image/jpeg',
-        timestamp,
-        tourStartTime: S.tourStart,
-        gpsLat:       S.gpsLat,
-        gpsLng:       S.gpsLng,
-      }),
-    });
+    // ── ขั้นตอนที่ 1: ส่งข้อมูลหลักพร้อมรูป ──────────────────
+    btn.textContent = '⏳ กำลังส่งข้อมูล... (1/1)';
+    const payload = {
+      action:         'guard_checkin',
+      tourId:         S.tourId,
+      userId:         S.userId,
+      guardName:      S.userName,
+      checkpointId:   S.cpId,
+      checkpointName: S.cpName,
+      status:         S.status,
+      notes,
+      imageBase64:    S.photoBase64,
+      imageMime:      S.photoMime || 'image/jpeg',
+      timestamp,
+      tourStartTime:  S.tourStart,
+      gpsLat:         S.gpsLat,
+      gpsLng:         S.gpsLng,
+    };
 
-    if (!res || res.status !== 'ok') throw new Error(res?.message || 'บันทึกไม่สำเร็จ');
+    let res = await postWithRetry(payload, 2);
+
+    // ── ถ้า payload ใหญ่เกิน → ลองส่งโดยไม่มีรูป (fallback) ──
+    if (!res || res.status !== 'ok') {
+      const errMsg = (res && res.message) || '';
+      const isPayloadErr = errMsg.toLowerCase().includes('payload') ||
+                           errMsg.toLowerCase().includes('load') ||
+                           errMsg.toLowerCase().includes('size') ||
+                           errMsg.toLowerCase().includes('large');
+
+      if (isPayloadErr && S.photoBase64) {
+        setSbar('sbar2', 'warning', '⚠️ รูปใหญ่เกิน กำลังลองส่งโดยไม่มีรูป...');
+        btn.textContent = '⏳ กำลังส่งใหม่ (ไม่มีรูป)...';
+        await new Promise(r => setTimeout(r, 1000));
+
+        const payloadNoPhoto = { ...payload, imageBase64: null, imageMime: null };
+        res = await postWithRetry(payloadNoPhoto, 1);
+        if (res && res.status === 'ok') {
+          setSbar('sbar2', 'warning', '⚠️ บันทึกสำเร็จ แต่ไม่ได้แนบรูป (รูปใหญ่เกินไป ถ่ายในพื้นที่แสงน้อยได้รูปเล็กกว่า)');
+        }
+      }
+    }
+
+    if (!res || res.status !== 'ok') {
+      throw new Error(res?.message || 'บันทึกไม่สำเร็จ กรุณาลองใหม่');
+    }
 
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
@@ -948,8 +1021,14 @@ async function submitCheck() {
       (remaining > 0 ? `\nยังเหลืออีก ${remaining} จุด` : '\n🎉 ครบทุกจุดแล้ว!') +
       (S.status === 'abnormal' ? '\n⚠️ แจ้ง Supervisor แล้ว' : '');
     show('ov-ok');
+
   } catch(e) {
-    setSbar('sbar2', 'error', '❌ บันทึกไม่สำเร็จ: ' + e.message);
+    let msg = e.message || 'ไม่ทราบสาเหตุ';
+    // แปล error message ภาษาอังกฤษให้เข้าใจง่ายขึ้น
+    if (msg.includes('abort') || msg.includes('timeout')) msg = 'หมดเวลาเชื่อมต่อ (timeout) — เน็ตช้าหรือรูปใหญ่เกิน';
+    if (msg.includes('Failed to fetch') || msg.includes('Load failed')) msg = 'เชื่อมต่อไม่ได้ — ตรวจสอบสัญญาณอินเทอร์เน็ต';
+    if (msg.includes('NetworkError')) msg = 'สัญญาณอินเทอร์เน็ตขาดหาย';
+    setSbar('sbar2', 'error', `❌ ${msg}`);
     btn.disabled    = false;
     btn.textContent = '📦 บันทึกการตรวจ';
   } finally {
