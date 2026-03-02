@@ -93,8 +93,10 @@ body { font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text)
 .cp-status { margin-left:auto; font-size:20px; flex-shrink:0; }
 .cp-tap-hint { font-size:10px; color:var(--amber); margin-top:2px; font-weight:600; letter-spacing:.3px; }
 
-.qr-idle { display:flex; flex-direction:column; align-items:center; gap:11px; padding:28px 18px; background:var(--surface2); border:2px dashed var(--border2); border-radius:13px; cursor:pointer; }
+.qr-idle { display:flex; flex-direction:column; align-items:center; gap:11px; padding:28px 18px; background:var(--surface2); border:2px dashed var(--border2); border-radius:13px; cursor:pointer; transition:all .2s; }
 .qr-idle:active { background:var(--surface3); }
+.qr-idle.qr-locked { cursor:not-allowed; opacity:.55; border-color:rgba(239,68,68,.35); background:rgba(239,68,68,.04); }
+.qr-idle.qr-ready  { border-color:rgba(245,158,11,.5); background:rgba(245,158,11,.04); cursor:pointer; opacity:1; }
 .qr-idle-icon  { font-size:48px; }
 .qr-idle-title { font-size:16px; font-weight:700; }
 .qr-idle-sub   { font-size:12px; color:var(--muted); text-align:center; line-height:1.6; }
@@ -280,10 +282,10 @@ textarea.required { border-color:rgba(239,68,68,.5); }
           <div class="gps-badge na" id="gps-badge">📡 GPS</div>
         </div>
         <div class="card-body">
-          <div id="qr-idle" class="qr-idle" onclick="startQR()">
-            <div class="qr-idle-icon">⬛</div>
-            <div class="qr-idle-title">แตะเพื่อสแกน QR</div>
-            <div class="qr-idle-sub">สแกน QR Code ที่ติดไว้บนจุดตรวจ<br>เพื่อยืนยันว่ามาถึงจุดนี้จริง</div>
+          <div id="qr-idle" class="qr-idle qr-locked" onclick="tryStartQR()">
+            <div class="qr-idle-icon" id="qr-idle-icon">🔒</div>
+            <div class="qr-idle-title" id="qr-idle-title">รอ GPS ก่อนสแกน QR</div>
+            <div class="qr-idle-sub" id="qr-idle-sub">ระบบกำลังตรวจสอบตำแหน่ง GPS<br>ต้องอยู่ในระยะ 50 เมตรจากจุดตรวจ</div>
           </div>
           <div id="qr-scan" class="qr-area hidden">
             <div id="reader"></div>
@@ -591,7 +593,7 @@ function renderHome() {
     const icon = isDone ? (isAbnorm ? '⚠️' : '✅') : '▶';
     const sub  = isDone
       ? `ตรวจแล้ว · ${isAbnorm ? 'ผิดปกติ' : 'ปกติ'}`
-      : (cp.lat ? cp.location : cp.location + ' · ไม่มีพิกัด GPS');
+      : (cp.lat ? cp.location : cp.location + ' · ⛔ ยังไม่มีพิกัด GPS');
     const hint = isDone
       ? '<div class="cp-tap-hint">แตะเพื่อตรวจซ้ำ</div>'
       : '<div class="cp-tap-hint">แตะเพื่อตรวจ →</div>';
@@ -694,6 +696,7 @@ function resetCheck() {
   S.photoMime = 'image/jpeg';
   stopQR(); stopGPS();
   show('qr-idle'); hide('qr-scan'); hide('qr-ok');
+  updateQRLockState(); // reset เป็น locked เสมอเมื่อเปิดจุดใหม่
   document.getElementById('btn-normal').className   = 'status-btn';
   document.getElementById('btn-abnormal').className = 'status-btn';
   document.getElementById('f-notes').value = '';
@@ -730,8 +733,12 @@ function startGPSWatch(cp) {
     return;
   }
   if (!cp.lat || !cp.lng) {
+    // [v2.7] บังคับทุกจุด — ถ้าไม่มีพิกัดให้บล็อกทั้งหมด
+    S.gpsOk = false;
     setGPSBadge('na', '📡 ไม่มีพิกัด');
-    showGPSInfo('nocoord', '⚠️ จุดนี้ยังไม่ได้ตั้งพิกัด GPS');
+    showGPSInfo('nocoord', '⛔ จุดนี้ยังไม่ได้ตั้งพิกัด GPS
+กรุณาแจ้ง Admin ตั้งพิกัดใน Google Sheets ก่อนใช้งาน');
+    updateQRLockState(); // QR ยังล็อคอยู่
     return;
   }
   setGPSBadge('checking', '📡 กำลังหา...');
@@ -761,11 +768,13 @@ function onGPSUpdate(pos, cp) {
     S.gpsOk = true;
     setGPSBadge('ok', `✅ ${dist} ม.`);
     showGPSInfo('ok', `✅ อยู่ในระยะ ${dist} เมตร จากจุดตรวจ`);
+    updateQRLockState();
     stopGPS();
   } else {
     S.gpsOk = false;
     setGPSBadge('fail', `❌ ${dist} ม.`);
     showGPSInfo('fail', `❌ ห่างจากจุดตรวจ ${dist} เมตร (ต้องอยู่ใน ${GPS_RADIUS_M} ม.)`);
+    updateQRLockState();
   }
 }
 
@@ -797,6 +806,58 @@ function showGPSInfo(type, text) {
 // ════════════════════════════════════════════════════
 // QR SCANNER
 // ════════════════════════════════════════════════════
+// [v2.7] ตรวจ GPS lock ก่อนสแกน QR
+function tryStartQR() {
+  const cp = gpsTargetCp;
+  // จุดไม่มีพิกัด → บล็อก บังคับตั้งพิกัดก่อน
+  if (!cp || !cp.lat || !cp.lng) {
+    setSbar('sbar1', 'error', '⛔ จุดนี้ยังไม่มีพิกัด GPS
+กรุณาแจ้ง Admin ตั้งพิกัดใน Google Sheets ก่อนใช้งาน');
+    return;
+  }
+  // GPS ต้องผ่านก่อน
+  if (!S.gpsOk) {
+    setSbar('sbar1', 'error', '🔒 ต้องอยู่ในระยะ ' + GPS_RADIUS_M + ' เมตรจากจุดตรวจก่อนจึงจะสแกน QR ได้
+(ตอนนี้ห่าง ' + (S.gpsDist !== null ? S.gpsDist + ' เมตร' : '— เมตร') + ')');
+    return;
+  }
+  startQR();
+}
+
+/** อัปเดต UI ของ qr-idle ตาม GPS state */
+function updateQRLockState() {
+  const cp      = gpsTargetCp;
+  const noCoord = !cp || !cp.lat || !cp.lng;
+  const idle    = document.getElementById('qr-idle');
+  const icon    = document.getElementById('qr-idle-icon');
+  const title   = document.getElementById('qr-idle-title');
+  const sub     = document.getElementById('qr-idle-sub');
+  if (!idle) return;
+
+  if (S.gpsOk) {
+    // GPS ผ่าน → ปลดล็อก QR
+    idle.classList.remove('qr-locked');
+    idle.classList.add('qr-ready');
+    icon.textContent  = '⬛';
+    title.textContent = 'แตะเพื่อสแกน QR';
+    sub.textContent   = 'GPS ผ่านแล้ว ✅ สแกน QR Code ที่จุดตรวจได้เลย';
+  } else if (noCoord) {
+    // ไม่มีพิกัด → ล็อก พร้อมแจ้ง Admin
+    idle.classList.add('qr-locked');
+    idle.classList.remove('qr-ready');
+    icon.textContent  = '⛔';
+    title.textContent = 'จุดนี้ยังไม่มีพิกัด GPS';
+    sub.textContent   = 'กรุณาแจ้ง Admin ตั้งพิกัดใน Google Sheets ก่อนใช้งาน';
+  } else {
+    // GPS ยังไม่ผ่าน → ล็อก
+    idle.classList.add('qr-locked');
+    idle.classList.remove('qr-ready');
+    icon.textContent  = '🔒';
+    title.textContent = 'รอ GPS ก่อนสแกน QR';
+    sub.textContent   = 'ต้องอยู่ในระยะ ' + GPS_RADIUS_M + ' เมตรจากจุดตรวจ';
+  }
+}
+
 function startQR() {
   stopQR().then(() => {
     hide('qr-idle');
