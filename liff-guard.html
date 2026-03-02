@@ -526,16 +526,20 @@ async function gasGetCall(params, timeoutMs = 40000) {
   return apiFetch(url, {});
 }
 
+// [v2.6 FIX] GAS Web App redirect POST(application/json) body → ใช้ multipart/form-data แทน
 async function gasPostCall(bodyObj, timeoutMs = 60000) {
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
+    const form = new FormData();
+    for (const [k, v] of Object.entries(bodyObj)) {
+      form.append(k, v == null ? '' : String(v));
+    }
     const res  = await fetch(GAS_URL, {
       method:   'POST',
       redirect: 'follow',
       signal:   ctrl.signal,
-      headers:  { 'Content-Type': 'application/json' },
-      body:     JSON.stringify(bodyObj),
+      body:     form,
     });
     const text = await res.text();
     clearTimeout(tid);
@@ -546,6 +550,27 @@ async function gasPostCall(bodyObj, timeoutMs = 60000) {
     if (e.name === 'AbortError') throw new Error('หมดเวลาเชื่อมต่อ (upload)');
     throw e;
   }
+}
+
+// compress + resize รูปก่อนส่ง (max 1200px, quality 0.75) → ไม่เกิน ~300KB
+function compressImage(dataUrl, maxPx = 1200, quality = 0.75) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxPx || h > maxPx) {
+        if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
+        else       { w = Math.round(w * maxPx / h); h = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const out = canvas.toDataURL('image/jpeg', quality);
+      resolve({ base64: out.split(',')[1], mime: 'image/jpeg', dataUrl: out });
+    };
+    img.onerror = () => resolve(null);
+    img.src = dataUrl;
+  });
 }
 
 function setLoadMsg(msg) {
@@ -988,21 +1013,25 @@ async function submitCheck() {
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
 
-    // ── Step 2: อัปโหลดรูป + ส่ง LINE image ─────────────────────────
+    // ── Step 2: compress + อัปโหลดรูป + ส่ง LINE image ────────────
     btn.textContent = '📤 กำลังส่งรูปภาพ...';
     if (S.photoBase64) {
       try {
+        // compress ก่อนส่ง — ลด size จาก ~3-8MB → ~100-300KB
+        const compressed = await compressImage(S.photoDataUrl, 1200, 0.75);
+        const b64 = compressed ? compressed.base64 : S.photoBase64;
+        const mime = compressed ? compressed.mime  : S.photoMime;
+
         await gasPostCall({
           action:        'upload_and_notify_photo',
           tourId:        S.tourId,
           checkpointId:  S.cpId,
           userId:        S.userId,
-          imageBase64:   S.photoBase64,
-          imageMime:     S.photoMime,
+          imageBase64:   b64,
+          imageMime:     mime,
           timestamp:     timestamp,
-        }, 60000);
+        }, 90000);
       } catch(photoErr) {
-        // รูปส่งไม่สำเร็จ — แจ้งเตือนแต่ไม่ error ทั้งหมด
         console.warn('Photo upload failed (non-fatal):', photoErr.message);
         setSbar('sbar2', 'warning', '⚠️ ข้อมูลบันทึกแล้ว แต่ส่งรูปไม่สำเร็จ (' + photoErr.message + ')');
       }
@@ -1047,28 +1076,12 @@ async function triggerTourComplete() {
   const done     = Object.keys(S.checked).length;
   const total    = CHECKPOINTS.length;
   const abnormal = Object.values(S.checked).filter(v => v.status === 'abnormal').length;
-
-  try {
-    const summary = Object.entries(S.checked).map(([id, v]) => ({
-      checkpointId:   id,
-      checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
-      status: v.status, notes: v.notes || '', timestamp: v.timestamp,
-    }));
-    await gasGetCall({
-      action:        'guard_tour_complete',
-      tourId:        S.tourId    || '',
-      userId:        S.userId    || '',
-      guardName:     S.userName  || '',
-      tourStartTime: S.tourStart || '',
-      tourEndTime:   new Date().toISOString(),
-      summary:       JSON.stringify(summary),
-    }, 35000);
-  } catch(err) { console.warn('tour_complete (non-fatal):', err.message); }
-
+  // [v2.6 FIX] ไม่ส่ง guard_tour_complete อีก เพราะแต่ละจุดส่ง LINE แล้วผ่าน guard_checkin
+  // guard_tour_complete จะทำให้ข้อความซ้ำ
   document.getElementById('ov-done-msg').textContent =
     `ตรวจ ${done}/${total} จุด\n` +
     (abnormal > 0 ? `⚠️ ผิดปกติ ${abnormal} จุด` : '✅ ทุกจุดปกติ') +
-    '\n\nรายงานถูกส่งไป LINE แล้ว';
+    '\n\nรายงาน + รูปภาพส่งทีละจุดแล้ว';
   show('ov-done');
 }
 
