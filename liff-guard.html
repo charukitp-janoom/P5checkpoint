@@ -118,7 +118,25 @@ body { font-family:'Sarabun',sans-serif; background:var(--bg); color:var(--text)
 .qr-ok-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
 .qr-rescan  { margin-left:auto; font-size:12px; color:var(--amber); text-decoration:underline; cursor:pointer; flex-shrink:0; }
 
-
+/* ── Photo Capture ── */
+.photo-area { display:flex; flex-direction:column; gap:10px; }
+.photo-preview-wrap { position:relative; border-radius:13px; overflow:hidden; background:#000; aspect-ratio:4/3; max-height:260px; }
+.photo-preview-wrap video,
+.photo-preview-wrap canvas { width:100% !important; height:100% !important; object-fit:cover; display:block; }
+.photo-btn-row { display:flex; gap:8px; }
+.photo-btn { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; padding:13px 8px; border:1.5px solid var(--border2); border-radius:11px; background:var(--surface2); color:var(--text); font-family:'Sarabun',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; }
+.photo-btn:active { transform:scale(.97); }
+.photo-btn .pb-icon { font-size:26px; }
+.photo-btn.active { border-color:var(--amber); background:rgba(245,158,11,.08); color:var(--amber); }
+.photo-thumb { position:relative; border-radius:11px; overflow:hidden; aspect-ratio:4/3; background:var(--surface3); }
+.photo-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.photo-thumb-badge { position:absolute; top:7px; right:7px; background:rgba(34,197,94,.9); border-radius:20px; font-size:11px; font-weight:700; color:#fff; padding:2px 9px; }
+.photo-retake { position:absolute; bottom:7px; right:7px; background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.25); border-radius:8px; font-size:12px; color:#fff; padding:4px 10px; cursor:pointer; font-family:'Sarabun',sans-serif; }
+.photo-idle { display:flex; flex-direction:column; align-items:center; gap:10px; padding:28px 18px; background:var(--surface2); border:2px dashed var(--border2); border-radius:13px; }
+.photo-idle-icon  { font-size:48px; }
+.photo-idle-title { font-size:15px; font-weight:700; }
+.photo-idle-sub   { font-size:12px; color:var(--muted); text-align:center; line-height:1.6; }
+.photo-req-badge  { font-size:10px; background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.35); color:var(--red); border-radius:20px; padding:2px 9px; font-weight:700; }
 
 .status-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .status-btn  { display:flex; flex-direction:column; align-items:center; gap:5px; padding:15px 8px; background:var(--surface2); border:2px solid var(--border2); border-radius:11px; cursor:pointer; font-family:'Sarabun',sans-serif; color:var(--text); transition:all .2s; }
@@ -145,6 +163,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 .confirm-val.mono  { font-family:'IBM Plex Mono',monospace; }
 .confirm-val.green { color:var(--green); }
 .confirm-val.red   { color:var(--red); }
+.confirm-photo { width:100%; border-radius:9px; object-fit:cover; max-height:160px; display:block; margin-top:4px; }
 
 .sbar { border-radius:10px; padding:10px 13px; font-size:13px; display:flex; align-items:center; gap:7px; line-height:1.5; margin-bottom:11px; }
 .sbar.hidden  { display:none; }
@@ -162,6 +181,9 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 .btn-row .btn-back { flex:0 0 auto; width:auto; padding:13px 17px; }
 
 .hidden { display:none !important; }
+
+/* hidden input สำหรับ file upload */
+#photo-file-input { display:none; }
 </style>
 </head>
 <body>
@@ -202,6 +224,9 @@ textarea.required { border-color:rgba(239,68,68,.5); }
   <div class="ov-sub" id="ov-done-msg"></div>
   <button class="btn btn-secondary" style="max-width:280px;margin-top:6px" onclick="newTour()">🔄 เริ่มรอบใหม่</button>
 </div>
+
+<!-- hidden input สำหรับ file/camera upload -->
+<input type="file" id="photo-file-input" accept="image/*" capture="environment">
 
 <div id="main" class="hidden">
   <div class="hdr">
@@ -248,6 +273,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
         <span id="gps-info-txt">กำลังตรวจสอบตำแหน่ง...</span>
       </div>
 
+      <!-- Step 1: QR -->
       <div class="card">
         <div class="card-hdr">
           📷 ขั้นตอนที่ 1 — สแกน QR จุดตรวจ
@@ -277,8 +303,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
         </div>
       </div>
 
-
-
+      <!-- Step 2: Status -->
       <div class="card">
         <div class="card-hdr">🔍 ขั้นตอนที่ 2 — สถานะจุดตรวจ</div>
         <div class="card-body">
@@ -297,8 +322,44 @@ textarea.required { border-color:rgba(239,68,68,.5); }
         </div>
       </div>
 
+      <!-- Step 3: Photo (NEW - บังคับ) -->
       <div class="card">
-        <div class="card-hdr">📝 ขั้นตอนที่ 3 — หมายเหตุ</div>
+        <div class="card-hdr">
+          📸 ขั้นตอนที่ 3 — ถ่ายภาพหลักฐาน
+          <span class="photo-req-badge">บังคับ</span>
+        </div>
+        <div class="card-body">
+          <div class="photo-area">
+            <!-- ยังไม่มีรูป -->
+            <div id="photo-idle" class="photo-idle">
+              <div class="photo-idle-icon">📷</div>
+              <div class="photo-idle-title">ยังไม่มีภาพหลักฐาน</div>
+              <div class="photo-idle-sub">ถ่ายภาพจุดตรวจเพื่อส่งให้ Supervisor<br>ผ่าน LINE พร้อมรายงาน</div>
+            </div>
+            <!-- ปุ่มถ่ายภาพ -->
+            <div class="photo-btn-row" id="photo-btn-row">
+              <button class="photo-btn" id="photo-btn-camera" onclick="openCamera()">
+                <span class="pb-icon">📷</span>
+                <span>ถ่ายภาพ</span>
+              </button>
+              <button class="photo-btn" id="photo-btn-gallery" onclick="openGallery()">
+                <span class="pb-icon">🖼️</span>
+                <span>เลือกจากคลัง</span>
+              </button>
+            </div>
+            <!-- แสดง Preview หลังถ่าย -->
+            <div id="photo-preview" class="photo-thumb hidden">
+              <img id="photo-img" src="" alt="ภาพหลักฐาน">
+              <span class="photo-thumb-badge">✅ มีภาพแล้ว</span>
+              <button class="photo-retake" onclick="retakePhoto()">📷 ถ่ายใหม่</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Notes -->
+      <div class="card">
+        <div class="card-hdr">📝 ขั้นตอนที่ 4 — หมายเหตุ</div>
         <div class="card-body">
           <div class="field">
             <label>หมายเหตุ <span id="notes-req" class="hidden">*บังคับเมื่อผิดปกติ</span></label>
@@ -319,7 +380,12 @@ textarea.required { border-color:rgba(239,68,68,.5); }
         <div class="confirm-row"><div class="confirm-key">รหัส</div><div class="confirm-val mono" id="c-id">—</div></div>
         <div class="confirm-row"><div class="confirm-key">สถานะ</div><div class="confirm-val" id="c-status">—</div></div>
         <div class="confirm-row"><div class="confirm-key">หมายเหตุ</div><div class="confirm-val" id="c-notes">—</div></div>
-
+        <div class="confirm-row"><div class="confirm-key">ภาพ</div>
+          <div class="confirm-val">
+            <img id="c-photo" class="confirm-photo hidden" src="" alt="ภาพหลักฐาน">
+            <span id="c-photo-none" style="color:var(--red);font-size:12px">ยังไม่มีภาพ</span>
+          </div>
+        </div>
         <div class="confirm-row"><div class="confirm-key">GPS</div><div class="confirm-val mono green" id="c-gps">—</div></div>
         <div class="confirm-row"><div class="confirm-key">เวลา</div><div class="confirm-val mono" id="c-time">—</div></div>
         <div class="confirm-row"><div class="confirm-key">ยาม</div><div class="confirm-val" id="c-guard">—</div></div>
@@ -341,7 +407,6 @@ const GAS_URL      = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg
 const LIFF_ID      = '2009191893-YFzSE10x';
 const GPS_RADIUS_M = 50;
 
-// ── ผลัดเวร (ต้องตรงกับ CONFIG.SHIFTS ใน Code.gs) ──────────────────────
 const SHIFTS = [
   { id: 1,  label: 'ผลัดที่ 1',  start: '22:00', end: '00:00' },
   { id: 2,  label: 'ผลัดที่ 2',  start: '00:00', end: '02:00' },
@@ -357,7 +422,6 @@ const SHIFTS = [
   { id: 12, label: 'ผลัดที่ 12', start: '20:00', end: '22:00' },
 ];
 
-/** คำนวณผลัดจากเวลา Date object */
 function detectShift(d) {
   const h = d.getHours(), m = d.getMinutes();
   const startMin = h * 60 + m;
@@ -384,6 +448,10 @@ const S = {
   cpId:null, cpName:null,
   status:null,
   gpsOk:false, gpsLat:null, gpsLng:null, gpsDist:null,
+  // [v2.6] Photo state
+  photoDataUrl:   null,   // base64 dataURL สำหรับ preview
+  photoBase64:    null,   // base64 pure (ไม่มี prefix) สำหรับส่ง API
+  photoMime:      'image/jpeg',
   submitting: false,
 };
 let qrScanner   = null;
@@ -426,6 +494,9 @@ async function init() {
       S.adminType === 'SUPER_ADMIN' ? '👑 Supervisor' : '🛡️ ยาม';
     document.getElementById('tb-total').textContent = CHECKPOINTS.length;
 
+    // ผูก event สำหรับ file input
+    document.getElementById('photo-file-input').addEventListener('change', onPhotoFileSelected);
+
     hideOv('ov-load');
     show('main');
     renderHome();
@@ -434,7 +505,6 @@ async function init() {
   }
 }
 
-// [FIX] apiFetch: GET เฉพาะ read-only endpoints
 async function apiFetch(url, opts = {}) {
   const ctrl = new AbortController();
   const tid  = setTimeout(() => ctrl.abort(), 30000);
@@ -451,13 +521,32 @@ async function apiFetch(url, opts = {}) {
   }
 }
 
-// [FIX v2.1] gasGetCall: GET สำหรับ checkin (ไม่มีรูป) และ tour_complete
 async function gasGetCall(params, timeoutMs = 40000) {
   const url  = GAS_URL + '?' + new URLSearchParams(params).toString();
   return apiFetch(url, {});
 }
 
-
+async function gasPostCall(bodyObj, timeoutMs = 60000) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res  = await fetch(GAS_URL, {
+      method:   'POST',
+      redirect: 'follow',
+      signal:   ctrl.signal,
+      headers:  { 'Content-Type': 'application/json' },
+      body:     JSON.stringify(bodyObj),
+    });
+    const text = await res.text();
+    clearTimeout(tid);
+    try { return JSON.parse(text); }
+    catch(_) { throw new Error('ตอบกลับไม่ใช่ JSON: ' + text.substring(0, 80)); }
+  } catch(e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('หมดเวลาเชื่อมต่อ (upload)');
+    throw e;
+  }
+}
 
 function setLoadMsg(msg) {
   document.getElementById('load-sub').textContent = msg;
@@ -532,7 +621,6 @@ function startTour() {
   S.tourId    = 'TOUR-' + Date.now().toString(36).toUpperCase();
   S.tourStart = now.toISOString();
   S.checked   = {};
-  // ── คำนวณผลัดเวร ณ เวลาที่เริ่มรอบ ──────────────────────────────────
   const sh    = detectShift(now);
   S.shiftId   = sh ? sh.id : null;
   renderHome();
@@ -576,6 +664,9 @@ function goBackHome() {
 function resetCheck() {
   S.cpId = S.cpName = S.status = null;
   S.gpsOk = false; S.gpsLat = S.gpsLng = S.gpsDist = null;
+  // Reset photo
+  S.photoDataUrl = S.photoBase64 = null;
+  S.photoMime = 'image/jpeg';
   stopQR(); stopGPS();
   show('qr-idle'); hide('qr-scan'); hide('qr-ok');
   document.getElementById('btn-normal').className   = 'status-btn';
@@ -586,6 +677,12 @@ function resetCheck() {
   hide('gps-info');
   document.getElementById('btn-confirm').disabled = true;
   setGPSBadge('na', '📡 GPS');
+  // Reset photo UI
+  show('photo-idle');
+  hide('photo-preview');
+  document.getElementById('photo-img').src = '';
+  // reset file input
+  document.getElementById('photo-file-input').value = '';
 }
 
 // ════════════════════════════════════════════════════
@@ -658,8 +755,6 @@ function retryGPS() {
   if (gpsTargetCp) { stopGPS(); startGPSWatch(gpsTargetCp); }
 }
 
-
-
 function setGPSBadge(type, text) {
   const b = document.getElementById('gps-badge');
   b.className   = 'gps-badge ' + type;
@@ -675,10 +770,9 @@ function showGPSInfo(type, text) {
 }
 
 // ════════════════════════════════════════════════════
-// QR SCANNER — [FIX] cleanup ถูกต้องก่อนเปิดใหม่
+// QR SCANNER
 // ════════════════════════════════════════════════════
 function startQR() {
-  // [FIX] หยุด scanner เก่าก่อนเสมอ เพื่อป้องกัน camera ค้าง
   stopQR().then(() => {
     hide('qr-idle');
     show('qr-scan');
@@ -697,7 +791,6 @@ function startQR() {
   });
 }
 
-// [FIX] stopQR คืน Promise เสมอ
 function stopQR() {
   if (!qrScanner) return Promise.resolve();
   const sc = qrScanner;
@@ -738,7 +831,55 @@ function rescanQR() {
   startQR();
 }
 
+// ════════════════════════════════════════════════════
+// [v2.6] PHOTO CAPTURE
+// ════════════════════════════════════════════════════
+function openCamera() {
+  const inp = document.getElementById('photo-file-input');
+  inp.setAttribute('capture', 'environment');
+  inp.accept = 'image/*';
+  inp.click();
+}
 
+function openGallery() {
+  const inp = document.getElementById('photo-file-input');
+  inp.removeAttribute('capture');
+  inp.accept = 'image/*';
+  inp.click();
+}
+
+function onPhotoFileSelected(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  S.photoMime = file.type || 'image/jpeg';
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const dataUrl = ev.target.result;
+    S.photoDataUrl = dataUrl;
+    // แยก base64 ออกจาก dataURL prefix
+    S.photoBase64 = dataUrl.split(',')[1] || '';
+
+    // แสดง preview
+    document.getElementById('photo-img').src = dataUrl;
+    hide('photo-idle');
+    show('photo-preview');
+    checkReady();
+  };
+  reader.readAsDataURL(file);
+
+  // reset value เพื่อให้เลือกไฟล์เดิมซ้ำได้
+  e.target.value = '';
+}
+
+function retakePhoto() {
+  S.photoDataUrl = S.photoBase64 = null;
+  hide('photo-preview');
+  show('photo-idle');
+  document.getElementById('photo-img').src = '';
+  checkReady();
+}
 
 // ════════════════════════════════════════════════════
 // STATUS & VALIDATION
@@ -764,6 +905,7 @@ function checkReady() {
   const notes = document.getElementById('f-notes').value.trim();
   const ok = !!S.cpId &&
              !!S.status &&
+             !!S.photoBase64 &&                              // [v2.6] บังคับมีรูป
              (S.status !== 'abnormal' || notes.length >= 3);
   document.getElementById('btn-confirm').disabled = !ok;
 }
@@ -789,7 +931,16 @@ function goConfirm() {
     : 'ไม่มีพิกัด / ข้าม GPS';
   document.getElementById('c-gps').textContent = gpsStr;
 
-  // [FIX v2.5] reset ปุ่มทุกครั้ง — ป้องกันค้างจากจุดก่อนหน้า
+  // แสดงรูปใน confirm
+  if (S.photoDataUrl) {
+    document.getElementById('c-photo').src = S.photoDataUrl;
+    show('c-photo');
+    hide('c-photo-none');
+  } else {
+    hide('c-photo');
+    show('c-photo-none');
+  }
+
   const btn = document.getElementById('btn-submit');
   btn.disabled    = false;
   btn.textContent = '📦 บันทึกการตรวจ';
@@ -801,7 +952,7 @@ function goConfirm() {
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT — v2.5: Step เดียว guard_checkin → GAS แจ้ง LINE ทันที 1 จุด
+// SUBMIT — v2.6: 1) checkin → 2) upload+notify photo
 // ════════════════════════════════════════════════════
 async function submitCheck() {
   if (S.submitting) return;
@@ -816,6 +967,7 @@ async function submitCheck() {
   const timestamp = new Date().toISOString();
 
   try {
+    // ── Step 1: บันทึก checkin + แจ้ง LINE ข้อความรายงาน ──────────────
     const res = await gasGetCall({
       action:         'guard_checkin',
       tourId:         S.tourId,
@@ -836,13 +988,33 @@ async function submitCheck() {
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
 
+    // ── Step 2: อัปโหลดรูป + ส่ง LINE image ─────────────────────────
+    btn.textContent = '📤 กำลังส่งรูปภาพ...';
+    if (S.photoBase64) {
+      try {
+        await gasPostCall({
+          action:        'upload_and_notify_photo',
+          tourId:        S.tourId,
+          checkpointId:  S.cpId,
+          userId:        S.userId,
+          imageBase64:   S.photoBase64,
+          imageMime:     S.photoMime,
+          timestamp:     timestamp,
+        }, 60000);
+      } catch(photoErr) {
+        // รูปส่งไม่สำเร็จ — แจ้งเตือนแต่ไม่ error ทั้งหมด
+        console.warn('Photo upload failed (non-fatal):', photoErr.message);
+        setSbar('sbar2', 'warning', '⚠️ ข้อมูลบันทึกแล้ว แต่ส่งรูปไม่สำเร็จ (' + photoErr.message + ')');
+      }
+    }
+
     const done      = Object.keys(S.checked).length;
     const total     = CHECKPOINTS.length;
     const remaining = total - done;
     document.getElementById('ov-ok-msg').textContent =
       `${S.cpName}\nตรวจแล้ว ${done}/${total} จุด` +
       (remaining > 0 ? `\nยังเหลืออีก ${remaining} จุด` : '\n🎉 ครบทุกจุดแล้ว!') +
-      `\n✅ แจ้ง Supervisor แล้ว`;
+      `\n✅ ส่งรายงาน + รูปภาพให้ Supervisor แล้ว`;
     show('ov-ok');
 
   } catch(e) {
@@ -851,7 +1023,6 @@ async function submitCheck() {
     btn.textContent = '📦 บันทึกการตรวจ';
   } finally {
     S.submitting    = false;
-    // reset ปุ่มล่วงหน้า เผื่อผู้ใช้กลับมาหน้านี้อีกครั้ง (ปุ่มยังอยู่ใน DOM)
     btn.disabled    = false;
     btn.textContent = '📦 บันทึกการตรวจ';
   }
@@ -871,7 +1042,6 @@ function endTourManual() {
   triggerTourComplete();
 }
 
-// [v2.5] ส่งสรุปรอบทั้งหมด เมื่อกดจบรอบ (แต่ละจุดแจ้งไปแล้วใน guard_checkin)
 async function triggerTourComplete() {
   stopGPS();
   const done     = Object.keys(S.checked).length;
@@ -909,7 +1079,6 @@ function showSec(name) {
   ['home','check','confirm'].forEach(s => {
     document.getElementById('sec-' + s).classList.toggle('hidden', s !== name);
   });
-  // [FIX] หยุด QR และ GPS เสมอเมื่อออกจาก check section
   if (name !== 'check') { stopQR(); stopGPS(); }
   window.scrollTo(0, 0);
 }
