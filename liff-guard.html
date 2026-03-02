@@ -1171,6 +1171,37 @@ function clearSbar(id) {
   document.getElementById(id).className = 'sbar hidden';
 }
 
+// ════════════════════════════════════════════════════
+// GLOBAL ERROR HANDLER — แสดง error แทนที่จะค้าง spinner
+// ════════════════════════════════════════════════════
+window.onerror = function(msg, src, line, col, err) {
+  const el = document.getElementById('load-sub');
+  const ti = document.getElementById('load-title');
+  if (el) el.textContent = 'JS Error: ' + msg + ' (line ' + line + ')';
+  if (ti) { ti.textContent = '❌ โหลดไม่สำเร็จ'; ti.style.color = '#ef4444'; }
+  console.error('Global error:', msg, src, line, col, err);
+};
+
+window.onunhandledrejection = function(e) {
+  const el = document.getElementById('load-sub');
+  const ti = document.getElementById('load-title');
+  if (el) el.textContent = 'Promise Error: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
+  if (ti) { ti.textContent = '❌ โหลดไม่สำเร็จ'; ti.style.color = '#ef4444'; }
+  console.error('Unhandled rejection:', e.reason);
+};
+
+// Timeout 35 วิ — ถ้ายังค้าง spinner ให้แสดง error
+setTimeout(function() {
+  const ov = document.getElementById('ov-load');
+  if (ov && !ov.classList.contains('hidden')) {
+    document.getElementById('load-title').textContent = '⏱️ หมดเวลา';
+    document.getElementById('load-title').style.color = '#ef4444';
+    document.getElementById('load-sub').textContent =
+      'โหลดนานเกินไป — อาจเกิดจาก:\n' +
+      '1. เครือข่ายช้า\n2. GAS ไม่ตอบสนอง\n3. LIFF ID ผิด\n\nลองปิดแล้วเปิดใหม่';
+  }
+}, 35000);
+
 init();
 </script>
 </body>
