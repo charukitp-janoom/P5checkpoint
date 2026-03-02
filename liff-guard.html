@@ -736,8 +736,7 @@ function startGPSWatch(cp) {
     // [v2.7] บังคับทุกจุด — ถ้าไม่มีพิกัดให้บล็อกทั้งหมด
     S.gpsOk = false;
     setGPSBadge('na', '📡 ไม่มีพิกัด');
-    showGPSInfo('nocoord', '⛔ จุดนี้ยังไม่ได้ตั้งพิกัด GPS
-กรุณาแจ้ง Admin ตั้งพิกัดใน Google Sheets ก่อนใช้งาน');
+    showGPSInfo('nocoord', '⛔ จุดนี้ยังไม่ได้ตั้งพิกัด GPS — กรุณาแจ้ง Admin ตั้งพิกัดใน Google Sheets ก่อนใช้งาน');
     updateQRLockState(); // QR ยังล็อคอยู่
     return;
   }
@@ -811,14 +810,12 @@ function tryStartQR() {
   const cp = gpsTargetCp;
   // จุดไม่มีพิกัด → บล็อก บังคับตั้งพิกัดก่อน
   if (!cp || !cp.lat || !cp.lng) {
-    setSbar('sbar1', 'error', '⛔ จุดนี้ยังไม่มีพิกัด GPS
-กรุณาแจ้ง Admin ตั้งพิกัดใน Google Sheets ก่อนใช้งาน');
+    setSbar('sbar1', 'error', '⛔ จุดนี้ยังไม่มีพิกัด GPS — กรุณาแจ้ง Admin ตั้งพิกัดใน Google Sheets ก่อนใช้งาน');
     return;
   }
   // GPS ต้องผ่านก่อน
   if (!S.gpsOk) {
-    setSbar('sbar1', 'error', '🔒 ต้องอยู่ในระยะ ' + GPS_RADIUS_M + ' เมตรจากจุดตรวจก่อนจึงจะสแกน QR ได้
-(ตอนนี้ห่าง ' + (S.gpsDist !== null ? S.gpsDist + ' เมตร' : '— เมตร') + ')');
+    setSbar('sbar1', 'error', '🔒 ต้องอยู่ในระยะ ' + GPS_RADIUS_M + ' เมตรจากจุดตรวจก่อนจึงจะสแกน QR ได้ (ตอนนี้ห่าง ' + (S.gpsDist !== null ? S.gpsDist + ' เมตร' : '— เมตร') + ')');
     return;
   }
   startQR();
