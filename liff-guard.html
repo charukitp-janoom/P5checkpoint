@@ -796,9 +796,7 @@ function goConfirm() {
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT — v2.5
-// Step 1 เดียว: GET guard_checkin → บันทึก + แจ้ง LINE ทันที (GAS ทำให้)
-// ไม่ต้องส่ง summary ทุกจุดแล้ว
+// SUBMIT — v2.5: Step เดียว guard_checkin → GAS แจ้ง LINE ทันที
 // ════════════════════════════════════════════════════
 async function submitCheck() {
   if (S.submitting) return;
@@ -828,9 +826,7 @@ async function submitCheck() {
       gpsLng:         S.gpsLng != null ? String(S.gpsLng) : '',
     });
 
-    if (!res || res.status !== 'ok') {
-      throw new Error(res?.message || 'บันทึกข้อมูลไม่สำเร็จ');
-    }
+    if (!res || res.status !== 'ok') throw new Error(res?.message || 'บันทึกข้อมูลไม่สำเร็จ');
 
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
@@ -841,7 +837,7 @@ async function submitCheck() {
     document.getElementById('ov-ok-msg').textContent =
       `${S.cpName}\nตรวจแล้ว ${done}/${total} จุด` +
       (remaining > 0 ? `\nยังเหลืออีก ${remaining} จุด` : '\n🎉 ครบทุกจุดแล้ว!') +
-      (S.status === 'abnormal' ? '\n⚠️ แจ้ง Supervisor แล้ว' : '\n✅ แจ้ง Supervisor แล้ว');
+      `\n✅ แจ้ง Supervisor แล้ว`;
     show('ov-ok');
 
   } catch(e) {
@@ -853,42 +849,32 @@ async function submitCheck() {
   }
 }
 
-function afterSuccess() {
-  hideOv('ov-ok');
-  renderHome();
-}
+function afterSuccess() { hideOv('ov-ok'); renderHome(); }
 
 function endTourManual() {
   hideOv('ov-ok');
   const done  = Object.keys(S.checked).length;
   const total = CHECKPOINTS.length;
   if (done < total) {
-    const remaining = total - done;
-    if (!confirm(`ยังมีจุดตรวจที่ยังไม่ได้ตรวจอีก ${remaining} จุด\nต้องการจบรอบเลยหรือไม่?`)) {
-      renderHome();
-      return;
+    if (!confirm(`ยังมีจุดตรวจที่ยังไม่ได้ตรวจอีก ${total-done} จุด\nต้องการจบรอบเลยหรือไม่?`)) {
+      renderHome(); return;
     }
   }
   triggerTourComplete();
 }
 
-// [v2.5] triggerTourComplete — ส่งสรุปภาพรวมเฉพาะตอนกดจบรอบ
-// (แต่ละจุดแจ้งไปแล้วใน guard_checkin — ฟังก์ชันนี้ส่งสรุปรอบทั้งหมดครั้งเดียว)
+// [v2.5] ส่งสรุปรอบทั้งหมด เมื่อกดจบรอบ
 async function triggerTourComplete() {
   stopGPS();
-
   const done     = Object.keys(S.checked).length;
   const total    = CHECKPOINTS.length;
   const abnormal = Object.values(S.checked).filter(v => v.status === 'abnormal').length;
 
-  // ส่งสรุปรอบไป GAS (non-fatal ถ้าล้มเหลว)
   try {
     const summary = Object.entries(S.checked).map(([id, v]) => ({
       checkpointId:   id,
       checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
-      status:         v.status,
-      notes:          v.notes || '',
-      timestamp:      v.timestamp,
+      status: v.status, notes: v.notes || '', timestamp: v.timestamp,
     }));
     await gasGetCall({
       action:        'guard_tour_complete',
@@ -899,9 +885,7 @@ async function triggerTourComplete() {
       tourEndTime:   new Date().toISOString(),
       summary:       JSON.stringify(summary),
     }, 35000);
-  } catch(err) {
-    console.warn('tour_complete failed (non-fatal):', err.message);
-  }
+  } catch(err) { console.warn('tour_complete (non-fatal):', err.message); }
 
   document.getElementById('ov-done-msg').textContent =
     `ตรวจ ${done}/${total} จุด\n` +
