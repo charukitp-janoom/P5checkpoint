@@ -370,6 +370,7 @@ textarea.required { border-color:rgba(239,68,68,.5); }
           <button class="btn btn-primary" id="btn-confirm" onclick="goConfirm()" disabled>
             ➡️ ตรวจสอบก่อนบันทึก
           </button>
+          <div id="confirm-hint" style="display:none;font-size:12px;color:var(--muted);text-align:center;margin-top:4px;padding:6px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border2);"></div>
         </div>
       </div>
     </div>
@@ -704,6 +705,8 @@ function resetCheck() {
   hide('notes-req');
   hide('gps-info');
   document.getElementById('btn-confirm').disabled = true;
+  const hint = document.getElementById('confirm-hint');
+  if (hint) { hint.textContent = ''; hint.style.display = 'none'; }
   setGPSBadge('na', '📡 GPS');
   // Reset photo UI
   show('photo-idle');
@@ -768,12 +771,14 @@ function onGPSUpdate(pos, cp) {
     setGPSBadge('ok', `✅ ${dist} ม.`);
     showGPSInfo('ok', `✅ อยู่ในระยะ ${dist} เมตร จากจุดตรวจ`);
     updateQRLockState();
+    checkReady();   // ปลดล็อกปุ่มบันทึกด้วยเมื่อ GPS ผ่าน
     stopGPS();
   } else {
     S.gpsOk = false;
     setGPSBadge('fail', `❌ ${dist} ม.`);
     showGPSInfo('fail', `❌ ห่างจากจุดตรวจ ${dist} เมตร (ต้องอยู่ใน ${GPS_RADIUS_M} ม.)`);
     updateQRLockState();
+    checkReady();   // อัปเดต hint
   }
 }
 
@@ -985,12 +990,31 @@ function setStatus(val) {
 }
 
 function checkReady() {
-  const notes = document.getElementById('f-notes').value.trim();
-  const ok = !!S.cpId &&
-             !!S.status &&
-             !!S.photoBase64 &&                              // [v2.6] บังคับมีรูป
-             (S.status !== 'abnormal' || notes.length >= 3);
-  document.getElementById('btn-confirm').disabled = !ok;
+  const notes   = document.getElementById('f-notes').value.trim();
+  const cp      = gpsTargetCp;
+  const needGps = cp && cp.lat && cp.lng;   // จุดที่มีพิกัด → ต้อง GPS ผ่าน
+  const gpsPass = !needGps || S.gpsOk;      // ไม่มีพิกัด → ผ่านอัตโนมัติ (แต่จะบล็อกจาก startGPSWatch แล้ว)
+
+  const ok = !!S.cpId &&          // QR ผ่านแล้ว
+             gpsPass &&            // GPS ผ่านแล้ว (หรือจุดไม่มีพิกัด)
+             !!S.status &&         // เลือกสถานะแล้ว
+             !!S.photoBase64 &&    // มีรูปแล้ว
+             (S.status !== 'abnormal' || notes.length >= 3); // ถ้าผิดปกติต้องมีหมายเหตุ
+
+  const btn = document.getElementById('btn-confirm');
+  btn.disabled = !ok;
+
+  // แสดง hint ว่าติดขั้นตอนไหน
+  const hint = document.getElementById('confirm-hint');
+  if (hint) {
+    if (!S.cpId)        hint.textContent = '⏳ รอสแกน QR จุดตรวจก่อน';
+    else if (!gpsPass)  hint.textContent = '🔒 รอ GPS ผ่านก่อน (ห่าง ' + (S.gpsDist !== null ? S.gpsDist + ' ม.' : '—') + ')';
+    else if (!S.status) hint.textContent = '⏳ รอเลือกสถานะจุดตรวจ';
+    else if (!S.photoBase64) hint.textContent = '⏳ รอถ่ายภาพหลักฐาน';
+    else if (S.status === 'abnormal' && notes.length < 3) hint.textContent = '⏳ รอกรอกหมายเหตุ';
+    else hint.textContent = '';
+    hint.style.display = (!ok && hint.textContent) ? 'block' : 'none';
+  }
 }
 
 // ════════════════════════════════════════════════════
