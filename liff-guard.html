@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ตรวจรอบยาม — Guard Tour v2.4</title>
+<title>ตรวจรอบยาม — Guard Tour</title>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
@@ -161,16 +161,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
 .btn-row { display:flex; gap:8px; }
 .btn-row .btn-back { flex:0 0 auto; width:auto; padding:13px 17px; }
 
-/* ── [v2.4] overlay ส่งรายงานสรุป ── */
-.ov-icon.sending  { background:rgba(59,130,246,.12); border:2px solid var(--blue); }
-.ov-title.blue    { color:var(--blue); }
-.ov-sending-steps { display:flex; flex-direction:column; gap:10px; width:100%; max-width:280px; margin-top:4px; }
-.ov-step { display:flex; align-items:center; gap:10px; padding:9px 14px; border-radius:10px; font-size:13px; font-weight:600; background:var(--surface2); border:1px solid var(--border2); color:var(--muted); transition:all .3s; }
-.ov-step.active { border-color:rgba(59,130,246,.4); background:rgba(59,130,246,.08); color:var(--blue); }
-.ov-step.done   { border-color:rgba(34,197,94,.4);  background:rgba(34,197,94,.08);  color:var(--green); }
-.ov-step-icon { width:18px; text-align:center; flex-shrink:0; }
-.ov-step-spin { width:14px; height:14px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin .8s linear infinite; display:inline-block; vertical-align:middle; }
-
 .hidden { display:none !important; }
 </style>
 </head>
@@ -186,18 +176,6 @@ textarea.required { border-color:rgba(239,68,68,.5); }
   <div class="ov-icon block">🔒</div>
   <div class="ov-title red">ไม่มีสิทธิ์เข้าใช้งาน</div>
   <div class="ov-sub" id="ov-block-reason"></div>
-</div>
-
-<!-- [v2.4] Overlay แสดงระหว่างส่งรายงานสรุปจบรอบ -->
-<div class="ov hidden" id="ov-sending">
-  <div class="ov-icon sending">📡</div>
-  <div class="ov-title blue">กำลังส่งรายงาน...</div>
-  <div class="ov-sub" id="ov-sending-sub">กรุณารอสักครู่</div>
-  <div class="ov-sending-steps">
-    <div class="ov-step" id="step-compile"><span class="ov-step-icon">📋</span>ประมวลผลข้อมูล</div>
-    <div class="ov-step" id="step-send"><span class="ov-step-icon">📤</span>ส่งรายงานไป LINE</div>
-    <div class="ov-step" id="step-done"><span class="ov-step-icon">✅</span>เสร็จสิ้น</div>
-  </div>
 </div>
 
 <div class="ov hidden" id="ov-gps">
@@ -818,9 +796,9 @@ function goConfirm() {
 function backToCheck() { showSec('check'); }
 
 // ════════════════════════════════════════════════════
-// SUBMIT — v2.4
-// Step 1: GET guard_checkin  — บันทึกข้อมูลจุด (สำคัญ)
-// Step 2: GET guard_tour_complete — ส่งสรุปทันที (non-fatal: ล้มก็ไม่ค้าง)
+// SUBMIT — v2.5
+// Step 1 เดียว: GET guard_checkin → บันทึก + แจ้ง LINE ทันที (GAS ทำให้)
+// ไม่ต้องส่ง summary ทุกจุดแล้ว
 // ════════════════════════════════════════════════════
 async function submitCheck() {
   if (S.submitting) return;
@@ -835,8 +813,6 @@ async function submitCheck() {
   const timestamp = new Date().toISOString();
 
   try {
-    // ══ Step 1: บันทึกข้อมูลหลักผ่าน GET (สำคัญ — ถ้า fail หยุด) ══════
-    btn.textContent = '⏳ กำลังบันทึก... (1/2)';
     const res = await gasGetCall({
       action:         'guard_checkin',
       tourId:         S.tourId,
@@ -856,27 +832,16 @@ async function submitCheck() {
       throw new Error(res?.message || 'บันทึกข้อมูลไม่สำเร็จ');
     }
 
-    // ══ บันทึก state ══════════════════════════════════════════════════
     stopGPS();
     S.checked[S.cpId] = { status: S.status, notes, timestamp };
 
-    // ══ Step 2: ส่งสรุปรอบตรวจ (non-fatal — ล้มเหลวก็ดำเนินการต่อ) ══
-    btn.textContent = '⏳ ส่งรายงาน... (2/2)';
-    try {
-      await sendTourSummaryNow();
-    } catch(summaryErr) {
-      // [FIX v2.4] ไม่ block UI ถ้า summary ส่งไม่ได้ — จุดตรวจบันทึกแล้ว
-      console.warn('summary send failed (non-fatal):', summaryErr.message);
-    }
-
-    // ══ แสดงผลสำเร็จเสมอ (ไม่ว่า step 2 จะสำเร็จหรือไม่) ═══════════
     const done      = Object.keys(S.checked).length;
     const total     = CHECKPOINTS.length;
     const remaining = total - done;
     document.getElementById('ov-ok-msg').textContent =
       `${S.cpName}\nตรวจแล้ว ${done}/${total} จุด` +
       (remaining > 0 ? `\nยังเหลืออีก ${remaining} จุด` : '\n🎉 ครบทุกจุดแล้ว!') +
-      (S.status === 'abnormal' ? '\n⚠️ แจ้ง Supervisor แล้ว' : '');
+      (S.status === 'abnormal' ? '\n⚠️ แจ้ง Supervisor แล้ว' : '\n✅ แจ้ง Supervisor แล้ว');
     show('ov-ok');
 
   } catch(e) {
@@ -888,35 +853,8 @@ async function submitCheck() {
   }
 }
 
-// [v2.2] ส่งสรุปทีละจุด ทันทีหลัง checkin สำเร็จแต่ละครั้ง
-async function sendTourSummaryNow() {
-  try {
-    const summary = Object.entries(S.checked).map(([id, v]) => ({
-      checkpointId:   id,
-      checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
-      status:         v.status,
-      notes:          v.notes || '',
-      timestamp:      v.timestamp,
-    }));
-    await gasGetCall({
-      action:        'guard_tour_complete',
-      tourId:        S.tourId        || '',
-      userId:        S.userId        || '',
-      guardName:     S.userName      || '',
-      tourStartTime: S.tourStart     || '',
-      tourEndTime:   new Date().toISOString(),
-      shiftId:       S.shiftId != null ? String(S.shiftId) : '',
-      summary:       JSON.stringify(summary),
-    }, 30000);
-  } catch(e) {
-    console.warn('sendTourSummaryNow failed (non-fatal):', e.message);
-  }
-}
-
 function afterSuccess() {
   hideOv('ov-ok');
-  // [v2.2] กลับหน้า home เสมอ — สรุปส่งไปแล้วทีละจุดใน submitCheck
-  // ถ้าครบทุกจุดแสดงปุ่ม "จบรอบ" ใน renderHome แทน
   renderHome();
 }
 
@@ -934,71 +872,40 @@ function endTourManual() {
   triggerTourComplete();
 }
 
-// [v2.4] triggerTourComplete: แสดง overlay ขั้นตอน ไม่ให้ UI ดูเหมือนค้าง
-function setOvStep(id, state) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.className = 'ov-step ' + state;
-  const icon = el.querySelector('.ov-step-icon');
-  if (state === 'active') icon.innerHTML = '<span class="ov-step-spin"></span>';
-  else if (state === 'done') icon.textContent = '✅';
-}
-
+// [v2.5] triggerTourComplete — ส่งสรุปภาพรวมเฉพาะตอนกดจบรอบ
+// (แต่ละจุดแจ้งไปแล้วใน guard_checkin — ฟังก์ชันนี้ส่งสรุปรอบทั้งหมดครั้งเดียว)
 async function triggerTourComplete() {
   stopGPS();
 
-  // รีเซ็ต steps
-  [['step-compile','📋'],['step-send','📤'],['step-done','✅']].forEach(([id, ic]) => {
-    const el = document.getElementById(id);
-    if (el) { el.className = 'ov-step'; el.querySelector('.ov-step-icon').textContent = ic; }
-  });
-  document.getElementById('ov-sending-sub').textContent = 'กรุณารอสักครู่';
-  show('ov-sending');
+  const done     = Object.keys(S.checked).length;
+  const total    = CHECKPOINTS.length;
+  const abnormal = Object.values(S.checked).filter(v => v.status === 'abnormal').length;
 
-  // Step 1: ประมวลผล
-  setOvStep('step-compile', 'active');
-  await new Promise(r => setTimeout(r, 250));
-  const summary = Object.entries(S.checked).map(([id, v]) => ({
-    checkpointId:   id,
-    checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
-    status:         v.status,
-    notes:          v.notes || '',
-    timestamp:      v.timestamp,
-  }));
-  setOvStep('step-compile', 'done');
-
-  // Step 2: ส่งรายงาน
-  setOvStep('step-send', 'active');
-  document.getElementById('ov-sending-sub').textContent = 'กำลังส่งรายงานไป LINE...';
+  // ส่งสรุปรอบไป GAS (non-fatal ถ้าล้มเหลว)
   try {
+    const summary = Object.entries(S.checked).map(([id, v]) => ({
+      checkpointId:   id,
+      checkpointName: CHECKPOINTS.find(c => c.id === id)?.name || id,
+      status:         v.status,
+      notes:          v.notes || '',
+      timestamp:      v.timestamp,
+    }));
     await gasGetCall({
       action:        'guard_tour_complete',
-      tourId:        S.tourId        || '',
-      userId:        S.userId        || '',
-      guardName:     S.userName      || '',
-      tourStartTime: S.tourStart     || '',
+      tourId:        S.tourId    || '',
+      userId:        S.userId    || '',
+      guardName:     S.userName  || '',
+      tourStartTime: S.tourStart || '',
       tourEndTime:   new Date().toISOString(),
-      shiftId:       S.shiftId != null ? String(S.shiftId) : '',
       summary:       JSON.stringify(summary),
     }, 35000);
   } catch(err) {
     console.warn('tour_complete failed (non-fatal):', err.message);
   }
-  setOvStep('step-send', 'done');
 
-  // Step 3: เสร็จ
-  setOvStep('step-done', 'done');
-  document.getElementById('ov-sending-sub').textContent = 'ส่งรายงานเรียบร้อย!';
-  await new Promise(r => setTimeout(r, 600));
-
-  hideOv('ov-sending');
-
-  const done     = Object.keys(S.checked).length;
-  const total    = CHECKPOINTS.length;
-  const abnormal = Object.values(S.checked).filter(v => v.status === 'abnormal').length;
   document.getElementById('ov-done-msg').textContent =
     `ตรวจ ${done}/${total} จุด\n` +
-    (abnormal > 0 ? `⚠️ ผิดปกติ ${abnormal} จุด — แจ้งเตือนแล้ว` : '✅ ทุกจุดปกติ') +
+    (abnormal > 0 ? `⚠️ ผิดปกติ ${abnormal} จุด` : '✅ ทุกจุดปกติ') +
     '\n\nรายงานถูกส่งไป LINE แล้ว';
   show('ov-done');
 }
