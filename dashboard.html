@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guard Tour — Command Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   DESIGN: Military Operations Center
+   Dark tactical UI — amber/green accent
+   ══════════════════════════════════════ */
+:root {
+  --black:    #060609;
+  --bg:       #0b0c10;
+  --surface:  #111218;
+  --surface2: #181920;
+  --surface3: #1e1f2a;
+  --panel:    #13141c;
+  --border:   rgba(255,255,255,.06);
+  --border2:  rgba(255,255,255,.1);
+
+  --amber:     #f5a623;
+  --amber2:    #ffd166;
+  --amber-dim: rgba(245,166,35,.15);
+  --green:     #06d672;
+  --green-dim: rgba(6,214,114,.12);
+  --red:       #ff4757;
+  --red-dim:   rgba(255,71,87,.12);
+  --blue:      #4fa3e3;
+  --blue-dim:  rgba(79,163,227,.12);
+
+  --text:      #dde1ec;
+  --muted:     #5a5d72;
+  --muted2:    #3d3f52;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: var(--black);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grid noise overlay */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255,255,255,.012) 39px, rgba(255,255,255,.012) 40px),
+    repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255,255,255,.012) 39px, rgba(255,255,255,.012) 40px);
+  pointer-events: none; z-index: 0;
+}
+
+/* ─── HEADER ─────────────────────────── */
+.cmd-header {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(11,12,16,.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 24px;
+  display: flex; align-items: center; gap: 20px;
+  height: 58px;
+}
+
+.cmd-logo {
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+}
+.cmd-logo-badge {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--amber), #c47a00);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 20px rgba(245,166,35,.4);
+}
+.cmd-logo-text {
+  font-family: 'Teko', sans-serif;
+  font-size: 22px; font-weight: 600; letter-spacing: 1px;
+  color: var(--amber);
+  line-height: 1;
+}
+.cmd-logo-sub {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 2px; text-transform: uppercase;
+  font-family: 'IBM Plex Mono', monospace;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.cmd-sep { width: 1px; height: 30px; background: var(--border2); flex-shrink: 0; }
+
+.cmd-status {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+  color: var(--green);
+}
+.cmd-status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 10px var(--green);
+  animation: pulse-dot 2s ease infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 6px var(--green); }
+  50%      { box-shadow: 0 0 16px var(--green), 0 0 24px rgba(6,214,114,.3); }
+}
+
+.cmd-clock {
+  margin-left: auto;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 18px; font-weight: 600;
+  color: var(--amber2);
+  letter-spacing: 2px;
+}
+.cmd-date {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 1px; text-align: right;
+}
+
+.cmd-auth {
+  display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+}
+.cmd-auth input {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; color: var(--text);
+  width: 140px; outline: none;
+  transition: border-color .2s;
+}
+.cmd-auth input:focus { border-color: var(--amber); }
+.cmd-auth input::placeholder { color: var(--muted); }
+.btn-auth {
+  background: var(--amber);
+  color: #000; border: none; border-radius: 7px;
+  padding: 6px 14px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s;
+  white-space: nowrap;
+}
+.btn-auth:hover { background: var(--amber2); }
+
+/* ─── MAIN LAYOUT ──────────────────── */
+.cmd-main {
+  position: relative; z-index: 1;
+  padding: 20px 20px 40px;
+  max-width: 1400px; margin: 0 auto;
+}
+
+/* ─── DATE FILTER ─────────────────── */
+.filter-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filter-label {
+  font-size: 11px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px; font-weight: 600; font-family: 'IBM Plex Mono', monospace;
+}
+.filter-bar input[type="date"] {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; outline: none;
+  transition: border-color .2s;
+  color-scheme: dark;
+}
+.filter-bar input:focus { border-color: var(--amber); }
+.btn-filter {
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,166,35,.3);
+  color: var(--amber);
+  border-radius: 8px; padding: 6px 14px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all .2s;
+}
+.btn-filter:hover { background: rgba(245,166,35,.25); }
+.btn-filter.primary { background: var(--amber); color: #000; border-color: var(--amber); }
+.btn-filter.primary:hover { background: var(--amber2); }
+.btn-export {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 7px;
+  background: var(--green-dim);
+  border: 1px solid rgba(6,214,114,.3);
+  color: var(--green);
+  border-radius: 8px; padding: 6px 14px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all .2s;
+}
+.btn-export:hover { background: rgba(6,214,114,.2); }
+
+/* ─── KPI ROW ─────────────────────── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+@media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s, transform .15s;
+}
+.kpi-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.kpi-card::before {
+  content: ''; position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+}
+.kpi-card.amber::before { background: linear-gradient(90deg, var(--amber), transparent); }
+.kpi-card.green::before { background: linear-gradient(90deg, var(--green), transparent); }
+.kpi-card.red::before   { background: linear-gradient(90deg, var(--red), transparent); }
+.kpi-card.blue::before  { background: linear-gradient(90deg, var(--blue), transparent); }
+.kpi-card.purple::before { background: linear-gradient(90deg, #a78bfa, transparent); }
+
+.kpi-icon { font-size: 22px; margin-bottom: 8px; }
+.kpi-num {
+  font-family: 'Teko', sans-serif;
+  font-size: 40px; font-weight: 600; line-height: 1;
+  color: var(--text);
+}
+.kpi-card.amber .kpi-num { color: var(--amber); }
+.kpi-card.green .kpi-num { color: var(--green); }
+.kpi-card.red   .kpi-num { color: var(--red); }
+.kpi-card.blue  .kpi-num { color: var(--blue); }
+.kpi-card.purple .kpi-num { color: #a78bfa; }
+
+.kpi-label {
+  font-size: 11px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: .8px; font-weight: 600; margin-top: 4px;
+}
+.kpi-sub {
+  font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+  color: var(--muted); margin-top: 3px;
+}
+.kpi-badge {
+  position: absolute; top: 12px; right: 12px;
+  font-size: 10px; padding: 2px 8px; border-radius: 20px;
+  font-family: 'IBM Plex Mono', monospace; font-weight: 600;
+}
+.kpi-badge.up   { background: var(--green-dim); color: var(--green); }
+.kpi-badge.down { background: var(--red-dim);   color: var(--red); }
+.kpi-badge.warn { background: var(--amber-dim); color: var(--amber); }
+
+/* ─── MAIN GRID ───────────────────── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px; margin-bottom: 16px;
+}
+@media (max-width: 1100px) {
+  .main-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── PANEL ─────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+}
+.panel-hdr {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 9px;
+  font-weight: 700; font-size: 13px;
+}
+.panel-hdr-icon { font-size: 16px; }
+.panel-hdr-tag {
+  margin-left: auto;
+  font-size: 10px; font-family: 'IBM Plex Mono', monospace;
+  color: var(--muted); padding: 2px 8px;
+  background: var(--surface3); border-radius: 6px;
+}
+
+/* ─── CHART AREA ──────────────────── */
+.chart-wrap { padding: 18px; }
+.chart-canvas { width: 100%; height: 220px; position: relative; }
+
+/* ─── SHIFT TABLE ─────────────────── */
+.shift-grid {
+  display: grid; grid-template-columns: repeat(6, 1fr);
+  gap: 4px; padding: 14px;
+}
+.shift-cell {
+  border-radius: 7px; padding: 8px 4px;
+  text-align: center; cursor: default;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  transition: all .2s;
+}
+.shift-cell:hover { border-color: rgba(245,166,35,.4); background: var(--amber-dim); }
+.shift-cell.active { border-color: rgba(6,214,114,.4); background: var(--green-dim); }
+.shift-cell.partial { border-color: rgba(245,166,35,.4); background: var(--amber-dim); }
+.shift-cell.alert   { border-color: rgba(255,71,87,.4);  background: var(--red-dim); }
+.shift-label { font-family: 'IBM Plex Mono', monospace; font-size: 9px; color: var(--muted); margin-bottom: 4px; }
+.shift-time  { font-size: 10px; font-weight: 700; }
+.shift-count { font-family: 'Teko', sans-serif; font-size: 20px; color: var(--text); line-height: 1; }
+
+/* ─── CHECKPOINT STATUS ───────────── */
+.cp-status-list { padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.cp-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; transition: all .18s;
+}
+.cp-row:hover { border-color: var(--border2); background: var(--surface3); }
+.cp-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 600;
+  color: var(--muted); width: 28px; flex-shrink: 0;
+}
+.cp-info { flex: 1; min-width: 0; }
+.cp-name-t { font-size: 13px; font-weight: 600; }
+.cp-loc-t  { font-size: 10px; color: var(--muted); }
+.cp-count-t {
+  font-family: 'Teko', sans-serif; font-size: 22px; font-weight: 600;
+  color: var(--text); flex-shrink: 0; line-height: 1;
+}
+.cp-bar-wrap {
+  width: 100%; height: 3px; background: var(--surface3);
+  border-radius: 2px; margin-top: 5px;
+}
+.cp-bar-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--green);
+  transition: width .6s ease;
+}
+.cp-bar-fill.warn { background: var(--amber); }
+.cp-bar-fill.alert { background: var(--red); }
+.cp-status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.cp-status-dot.ok   { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.cp-status-dot.warn { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.cp-status-dot.none { background: var(--muted2); }
+
+/* ─── ACTIVITY FEED ─────────────── */
+.activity-feed { padding: 8px 14px 14px; }
+.act-item {
+  display: flex; gap: 11px; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  animation: fadeIn .4s ease;
+}
+.act-item:last-child { border-bottom: none; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(4px); } }
+.act-dot-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  flex-shrink: 0; padding-top: 4px;
+}
+.act-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.act-dot.ok     { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.act-dot.warn   { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+.act-dot.info   { background: var(--blue);  box-shadow: 0 0 8px var(--blue); }
+.act-line       { width: 1px; flex: 1; background: var(--border2); min-height: 20px; }
+.act-content    { flex: 1; min-width: 0; }
+.act-top        { display: flex; align-items: flex-start; gap: 8px; }
+.act-cp         { font-size: 13px; font-weight: 700; }
+.act-badge {
+  font-size: 10px; padding: 2px 7px; border-radius: 20px;
+  font-family: 'IBM Plex Mono', monospace; font-weight: 600; flex-shrink: 0;
+}
+.act-badge.ok   { background: var(--green-dim); color: var(--green); }
+.act-badge.warn { background: var(--red-dim);   color: var(--red); }
+.act-guard      { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.act-time       {
+  font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+  color: var(--muted); margin-left: auto; white-space: nowrap; flex-shrink: 0;
+}
+.act-notes {
+  font-size: 11px; color: var(--red); margin-top: 3px;
+  background: var(--red-dim); padding: 3px 8px; border-radius: 5px;
+  border-left: 2px solid var(--red);
+}
+
+/* ─── TABLE ──────────────────────── */
+.tbl-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px;
+}
+.data-table th {
+  padding: 10px 14px; text-align: left;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border2);
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: .8px; color: var(--muted); font-weight: 600;
+  font-family: 'IBM Plex Mono', monospace;
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.data-table tr:hover td { background: var(--surface2); }
+.data-table tr:last-child td { border-bottom: none; }
+.td-mono { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+.td-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; padding: 3px 8px; border-radius: 20px;
+  font-weight: 600; font-family: 'IBM Plex Mono', monospace;
+  white-space: nowrap;
+}
+.td-badge.ok     { background: var(--green-dim); color: var(--green); border: 1px solid rgba(6,214,114,.25); }
+.td-badge.warn   { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(255,71,87,.25); }
+.td-badge.info   { background: var(--blue-dim);  color: var(--blue);  border: 1px solid rgba(79,163,227,.25); }
+.td-photo {
+  display: inline-block; font-size: 10px; color: var(--blue);
+  cursor: pointer; text-decoration: underline;
+}
+
+/* ─── BOTTOM GRID ─────────────────── */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 800px) { .bottom-grid { grid-template-columns: 1fr; } }
+
+/* ─── LOADING STATES ─────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.empty-state {
+  padding: 40px; text-align: center;
+  color: var(--muted); font-size: 13px;
+}
+.empty-state .es-icon { font-size: 40px; margin-bottom: 10px; }
+
+/* ─── TOAST ──────────────────────── */
+.toast-wrap {
+  position: fixed; bottom: 20px; right: 20px;
+  z-index: 999; display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  padding: 12px 18px; border-radius: 10px;
+  font-size: 13px; font-weight: 600;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5);
+  animation: toastIn .3s ease;
+  max-width: 300px;
+}
+@keyframes toastIn { from { opacity:0; transform: translateX(20px); } }
+.toast.success { background: #0a2e1a; border: 1px solid rgba(6,214,114,.4); color: var(--green); }
+.toast.error   { background: #2e0a0a; border: 1px solid rgba(255,71,87,.4);  color: var(--red); }
+.toast.info    { background: #0a1e35; border: 1px solid rgba(79,163,227,.4); color: var(--blue); }
+
+/* ─── PHOTO MODAL ─────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.85);
+  z-index: 500; display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px);
+  animation: fadeIn .2s;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px; overflow: hidden;
+  max-width: 90vw; max-height: 90vh;
+  display: flex; flex-direction: column;
+}
+.modal-hdr {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 700; font-size: 14px;
+}
+.modal-close {
+  margin-left: auto; cursor: pointer;
+  background: none; border: none; color: var(--muted);
+  font-size: 20px; padding: 2px 6px;
+  transition: color .2s;
+}
+.modal-close:hover { color: var(--text); }
+.modal-img { max-width: 100%; max-height: 80vh; object-fit: contain; display: block; }
+
+/* ─── SCROLLBAR ──────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ─── SMALL CHART (bar) ──────────── */
+.mini-bars {
+  display: flex; align-items: flex-end; gap: 3px;
+  height: 80px; padding: 0 14px 14px;
+}
+.mini-bar-wrap {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 4px;
+}
+.mini-bar {
+  width: 100%; border-radius: 4px 4px 0 0;
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,166,35,.3);
+  transition: height .6s ease;
+  cursor: default; position: relative;
+}
+.mini-bar:hover { background: var(--amber-dim); border-color: var(--amber); }
+.mini-bar.has-alert { background: var(--red-dim); border-color: var(--red-dim); }
+.mini-bar-lbl { font-size: 9px; color: var(--muted); font-family: 'IBM Plex Mono', monospace; }
+.mini-bar-val { font-size: 10px; color: var(--amber); font-weight: 700; }
+
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═════════════════════════════ -->
+<header class="cmd-header">
+  <div class="cmd-logo">
+    <div class="cmd-logo-badge">🛡️</div>
+    <div>
+      <div class="cmd-logo-text">GUARD TOUR</div>
+      <div class="cmd-logo-sub">Command Dashboard</div>
+    </div>
+  </div>
+  <div class="cmd-sep"></div>
+  <div class="cmd-status">
+    <div class="cmd-status-dot"></div>
+    <span id="conn-status">CONNECTED</span>
+  </div>
+  <div class="cmd-auth">
+    <input type="password" id="secret-input" placeholder="รหัส Supervisor" autocomplete="off">
+    <button class="btn-auth" onclick="doConnect()">เชื่อมต่อ</button>
+  </div>
+  <div style="text-align:right">
+    <div class="cmd-clock" id="clock">00:00:00</div>
+    <div class="cmd-date" id="clock-date">—</div>
+  </div>
+</header>
+
+<!-- ═══ MAIN ════════════════════════════════ -->
+<main class="cmd-main">
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <span class="filter-label">ช่วงวันที่:</span>
+    <input type="date" id="f-start" />
+    <span style="color:var(--muted);font-size:12px">ถึง</span>
+    <input type="date" id="f-end" />
+    <button class="btn-filter" onclick="loadData()">🔍 โหลดข้อมูล</button>
+    <button class="btn-filter primary" onclick="setToday()">📅 วันนี้</button>
+    <button class="btn-filter" onclick="setYesterday()">◀ เมื่อวาน</button>
+    <button class="btn-filter" onclick="setThisWeek()">📆 สัปดาห์นี้</button>
+    <button class="btn-export" onclick="exportExcel()">
+      <span>📊</span> Export Excel
+    </button>
+  </div>
+
+  <!-- KPI Row -->
+  <div class="kpi-row">
+    <div class="kpi-card amber">
+      <div class="kpi-icon">🗂️</div>
+      <div class="kpi-num" id="kpi-tours">—</div>
+      <div class="kpi-label">รอบตรวจ</div>
+      <div class="kpi-sub" id="kpi-tours-sub">ทั้งหมดในช่วงที่เลือก</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-icon">📍</div>
+      <div class="kpi-num" id="kpi-checkins">—</div>
+      <div class="kpi-label">จุดตรวจแล้ว</div>
+      <div class="kpi-sub" id="kpi-checkins-sub">check-in ทั้งหมด</div>
+    </div>
+    <div class="kpi-card red">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-num" id="kpi-abnormal">—</div>
+      <div class="kpi-label">ผิดปกติ</div>
+      <div class="kpi-sub" id="kpi-abnormal-sub">จุดที่มีปัญหา</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-icon">👤</div>
+      <div class="kpi-num" id="kpi-guards">—</div>
+      <div class="kpi-label">ยาม</div>
+      <div class="kpi-sub" id="kpi-guards-sub">ปฏิบัติหน้าที่</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-icon">📸</div>
+      <div class="kpi-num" id="kpi-photos">—</div>
+      <div class="kpi-label">ภาพหลักฐาน</div>
+      <div class="kpi-sub" id="kpi-photos-sub">มีรูปที่อัปโหลด</div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+
+    <!-- Left: Activity Feed + Table -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Shift Coverage Bar -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-hdr-icon">🕐</span>
+          ความครอบคลุมรอบตรวจรายผลัด
+          <span class="panel-hdr-tag" id="shift-date-tag">—</span>
+        </div>
+        <div class="shift-grid" id="shift-grid">
+          <!-- filled by JS -->
+        </div>
+        <!-- Mini bar chart -->
+        <div class="mini-bars" id="shift-bars"></div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-hdr-icon">⚡</span>
+          กิจกรรมล่าสุด (50 รายการ)
+          <span class="panel-hdr-tag" id="act-count-tag">0</span>
+        </div>
+        <div class="activity-feed" id="activity-feed">
+          <div class="empty-state"><div class="es-icon">🔍</div>โหลดข้อมูลก่อนครับ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Checkpoint Status + Active Guards -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+
+      <!-- Checkpoint Status -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-hdr-icon">📍</span>
+          สถิติจุดตรวจ
+          <span class="panel-hdr-tag" id="cp-tag">—</span>
+        </div>
+        <div class="cp-status-list" id="cp-status-list">
+          <div class="empty-state" style="padding:20px"><div class="es-icon">📍</div>—</div>
+        </div>
+      </div>
+
+      <!-- Active Guard Sessions -->
+      <div class="panel">
+        <div class="panel-hdr">
+          <span class="panel-hdr-icon">🛡️</span>
+          ยามที่ Login อยู่
+          <span class="panel-hdr-tag" id="guard-tag">0</span>
+        </div>
+        <div id="guard-list" style="padding:10px 14px 14px">
+          <div class="empty-state" style="padding:20px"><div class="es-icon">🛡️</div>—</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Bottom: Full Data Table -->
+  <div class="panel">
+    <div class="panel-hdr">
+      <span class="panel-hdr-icon">📋</span>
+      ตารางข้อมูลทั้งหมด
+      <span class="panel-hdr-tag" id="tbl-tag">0 รายการ</span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="data-table" id="data-table">
+        <thead>
+          <tr>
+            <th>#</th><th>เวลา</th><th>รอบ (TourId)</th>
+            <th>จุดตรวจ</th><th>ยาม</th>
+            <th>สถานะ</th><th>หมายเหตุ</th>
+            <th>GPS</th><th>รูป</th>
+          </tr>
+        </thead>
+        <tbody id="tbl-body">
+          <tr><td colspan="9" class="empty-state">โหลดข้อมูลก่อนครับ</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- Toast container -->
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- Photo Modal -->
+<div class="modal-overlay hidden" id="photo-modal" onclick="closePhotoModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      📸 ภาพหลักฐาน
+      <span id="modal-cp-name" style="color:var(--amber)">—</span>
+      <button class="modal-close" onclick="closePhotoModal()">✕</button>
+    </div>
+    <img id="modal-img" class="modal-img" src="" alt="">
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+// CONFIG — เปลี่ยน GAS_URL ให้ตรงกับระบบ
+// ════════════════════════════════════════
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbweOsHINJk_DSPsueg-YEFaDUUahLcMqoGp1TzJJ6uS_ACCuKorrm38Ww21NPB4TV94kQ/exec';
+const SUPERADMIN_SECRET = 'SUPER1005';
+
+const SHIFTS = [
+  { id:1,  label:'ผ.1',  start:'22:00', end:'00:00' },
+  { id:2,  label:'ผ.2',  start:'00:00', end:'02:00' },
+  { id:3,  label:'ผ.3',  start:'02:00', end:'04:00' },
+  { id:4,  label:'ผ.4',  start:'04:00', end:'06:00' },
+  { id:5,  label:'ผ.5',  start:'06:00', end:'08:00' },
+  { id:6,  label:'ผ.6',  start:'08:00', end:'10:00' },
+  { id:7,  label:'ผ.7',  start:'10:00', end:'12:00' },
+  { id:8,  label:'ผ.8',  start:'12:00', end:'14:00' },
+  { id:9,  label:'ผ.9',  start:'14:00', end:'16:00' },
+  { id:10, label:'ผ.10', start:'16:00', end:'18:00' },
+  { id:11, label:'ผ.11', start:'18:00', end:'20:00' },
+  { id:12, label:'ผ.12', start:'20:00', end:'22:00' },
+];
+
+let ALL_ROWS = [];
+let CHECKPOINT_LIST = [];
+let autoRefreshTimer = null;
+let isConnected = false;
+
+// ════════════════════════════════════════
+// CLOCK
+// ════════════════════════════════════════
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  document.getElementById('clock-date').textContent =
+    now.toLocaleDateString('th-TH', { year:'numeric', month:'short', day:'numeric', weekday:'short' });
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ════════════════════════════════════════
+// DATE HELPERS
+// ════════════════════════════════════════
+function toDateInput(d) {
+  return d.toISOString().slice(0, 10);
+}
+function setToday() {
+  const d = new Date();
+  document.getElementById('f-start').value = toDateInput(d);
+  document.getElementById('f-end').value   = toDateInput(d);
+  loadData();
+}
+function setYesterday() {
+  const d = new Date(); d.setDate(d.getDate()-1);
+  document.getElementById('f-start').value = toDateInput(d);
+  document.getElementById('f-end').value   = toDateInput(d);
+  loadData();
+}
+function setThisWeek() {
+  const now = new Date();
+  const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+  document.getElementById('f-start').value = toDateInput(mon);
+  document.getElementById('f-end').value   = toDateInput(now);
+  loadData();
+}
+
+// Default: today
+(function() {
+  const d = new Date();
+  document.getElementById('f-start').value = toDateInput(d);
+  document.getElementById('f-end').value   = toDateInput(d);
+})();
+
+// ════════════════════════════════════════
+// CONNECTION
+// ════════════════════════════════════════
+function doConnect() {
+  const secret = document.getElementById('secret-input').value.trim();
+  if (!secret) { showToast('กรอกรหัส Supervisor ก่อน', 'error'); return; }
+  if (secret !== SUPERADMIN_SECRET) { showToast('รหัสไม่ถูกต้อง', 'error'); return; }
+  isConnected = true;
+  document.getElementById('conn-status').textContent = 'AUTHENTICATED';
+  showToast('✅ เชื่อมต่อสำเร็จ', 'success');
+  loadData();
+  startAutoRefresh();
+}
+
+function startAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    const start = document.getElementById('f-start').value;
+    const end   = document.getElementById('f-end').value;
+    const today = toDateInput(new Date());
+    if (start === today || end === today) loadData(true);
+  }, 60000);
+}
+
+// ════════════════════════════════════════
+// LOAD DATA
+// ════════════════════════════════════════
+async function loadData(silent = false) {
+  if (!isConnected) { showToast('กรอกรหัส Supervisor ก่อนครับ', 'error'); return; }
+
+  const startDate = document.getElementById('f-start').value;
+  const endDate   = document.getElementById('f-end').value;
+  if (!startDate || !endDate) { showToast('เลือกช่วงวันที่ก่อน', 'error'); return; }
+
+  if (!silent) showToast('🔄 กำลังโหลดข้อมูล...', 'info');
+
+  try {
+    const [tourRes, cpRes, statsRes, guardRes] = await Promise.all([
+      apiFetch(`${GAS_URL}?action=get_tour_data&startDate=${startDate}&endDate=${endDate}`),
+      apiFetch(`${GAS_URL}?action=get_checkpoints`),
+      apiFetch(`${GAS_URL}?action=get_stats`),
+      apiFetch(`${GAS_URL}?action=get_active_guards`),
+    ]);
+
+    CHECKPOINT_LIST = (cpRes && cpRes.checkpoints) ? cpRes.checkpoints : [];
+
+    // ถ้า GAS ยังไม่มี get_tour_data → ใช้ข้อมูล demo
+    if (!tourRes || tourRes.status === 'error') {
+      ALL_ROWS = generateDemoData(startDate, endDate);
+      if (!silent) showToast('⚠️ ใช้ข้อมูล Demo (GAS ยังไม่ได้อัปเดต)', 'info');
+    } else {
+      ALL_ROWS = tourRes.rows || [];
+    }
+
+    renderAll(startDate, endDate);
+    renderGuards(guardRes);
+    if (!silent) showToast(`✅ โหลดแล้ว ${ALL_ROWS.length} รายการ`, 'success');
+  } catch(e) {
+    // Fallback to demo
+    ALL_ROWS = generateDemoData(startDate, endDate);
+    renderAll(startDate, endDate);
+    if (!silent) showToast('⚠️ Demo mode: ' + e.message.substring(0,50), 'info');
+  }
+}
+
+async function apiFetch(url) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res  = await fetch(url, { redirect:'follow', signal: ctrl.signal });
+    const text = await res.text();
+    clearTimeout(tid);
+    try { return JSON.parse(text); } catch(_) { return null; }
+  } catch(e) { clearTimeout(tid); throw e; }
+}
+
+// ════════════════════════════════════════
+// DEMO DATA GENERATOR
+// ════════════════════════════════════════
+function generateDemoData(startDate, endDate) {
+  const cpNames = [
+    { id:'CP-01', name:'ประตูทิศเหนือ', loc:'ทางเข้าด้านเหนือ' },
+    { id:'CP-02', name:'ประตูทิศใต้',   loc:'ทางเข้าด้านใต้' },
+    { id:'CP-03', name:'คลังแสง',       loc:'อาคาร A' },
+    { id:'CP-04', name:'ที่พักทหาร',    loc:'โซน B' },
+    { id:'CP-05', name:'โรงนา',          loc:'พื้นที่หลัง' },
+  ];
+  if (CHECKPOINT_LIST.length) {
+    CHECKPOINT_LIST.forEach((cp, i) => { cpNames[i] = { id: cp.id, name: cp.name, loc: cp.location }; });
+  }
+  const guards = ['ส.ต.สมชาย', 'ส.ต.วิชัย', 'ส.ต.ประเสริฐ'];
+  const rows = [];
+  const start = new Date(startDate);
+  const end   = new Date(endDate + 'T23:59:59');
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+    const numTours = 3 + Math.floor(Math.random() * 3);
+    for (let t = 0; t < numTours; t++) {
+      const tourId = 'TOUR-' + Math.random().toString(36).substr(2,8).toUpperCase();
+      const guard  = guards[t % guards.length];
+      const hour   = [6,10,14,18,22,2][t % 6];
+      const tourDate = new Date(d);
+      tourDate.setHours(hour, Math.floor(Math.random()*60), 0, 0);
+
+      cpNames.forEach((cp, ci) => {
+        const ts = new Date(tourDate.getTime() + ci * 5 * 60000);
+        const isAbnorm = Math.random() < 0.08;
+        rows.push({
+          tourId, checkpointId: cp.id, checkpointName: cp.name,
+          guardName: guard, timestamp: ts.toISOString(),
+          status: isAbnorm ? 'ผิดปกติ' : 'ปกติ',
+          notes: isAbnorm ? 'พบประตูเปิดค้างไว้' : '',
+          photoUrl: isAbnorm ? 'https://via.placeholder.com/400x300' : '',
+          tourStartTime: tourDate.toISOString(),
+          gpsLat: (7.5 + Math.random()*0.01).toFixed(6),
+          gpsLng: (100.4 + Math.random()*0.01).toFixed(6),
+        });
+      });
+    }
+  }
+  return rows.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+}
+
+// ════════════════════════════════════════
+// RENDER ALL
+// ════════════════════════════════════════
+function renderAll(startDate, endDate) {
+  renderKPI();
+  renderShiftGrid(startDate);
+  renderActivity();
+  renderCPStatus();
+  renderTable();
+}
+
+// ─── KPI ─────────────────────────────
+function renderKPI() {
+  const tours    = [...new Set(ALL_ROWS.map(r => r.tourId))].length;
+  const abnormal = ALL_ROWS.filter(r => r.status === 'ผิดปกติ').length;
+  const guards   = [...new Set(ALL_ROWS.map(r => r.guardName))].length;
+  const photos   = ALL_ROWS.filter(r => r.photoUrl && r.photoUrl.startsWith('http')).length;
+
+  animNum('kpi-tours',    tours);
+  animNum('kpi-checkins', ALL_ROWS.length);
+  animNum('kpi-abnormal', abnormal);
+  animNum('kpi-guards',   guards);
+  animNum('kpi-photos',   photos);
+
+  document.getElementById('kpi-tours-sub').textContent    = `รอบตรวจ ${tours} รอบ`;
+  document.getElementById('kpi-checkins-sub').textContent = `${ALL_ROWS.length} รายการ`;
+  document.getElementById('kpi-abnormal-sub').textContent = abnormal > 0 ? `⚠️ พบ ${abnormal} จุด!` : '✅ ปกติทั้งหมด';
+  document.getElementById('kpi-guards-sub').textContent   = `${guards} นาย`;
+  document.getElementById('kpi-photos-sub').textContent   = `${photos} รูป`;
+}
+
+function animNum(id, target) {
+  const el = document.getElementById(id);
+  const start = parseInt(el.textContent) || 0;
+  const dur = 600, fps = 30, steps = dur / (1000/fps);
+  let step = 0;
+  const timer = setInterval(() => {
+    step++;
+    el.textContent = Math.round(start + (target - start) * (step / steps));
+    if (step >= steps) { el.textContent = target; clearInterval(timer); }
+  }, 1000/fps);
+}
+
+// ─── SHIFT GRID ───────────────────────
+function detectShiftForRow(isoTs) {
+  const d = new Date(isoTs);
+  const h = d.getHours(), m = d.getMinutes();
+  const startMin = h * 60 + m;
+  for (const sh of SHIFTS) {
+    const [sh_h, sh_m] = sh.start.split(':').map(Number);
+    const [eh, em]     = sh.end.split(':').map(Number);
+    let sMin = sh_h*60+sh_m, eMin = eh*60+em;
+    if (eMin <= sMin) eMin += 24*60;
+    const adj = startMin + (startMin < sMin && sMin >= 12*60 ? 24*60 : 0);
+    if (adj >= sMin && adj < eMin) return sh.id;
+  }
+  return null;
+}
+
+function renderShiftGrid(startDate) {
+  const shiftCounts = {};
+  const shiftAbnormal = {};
+  SHIFTS.forEach(s => { shiftCounts[s.id] = 0; shiftAbnormal[s.id] = 0; });
+
+  ALL_ROWS.forEach(r => {
+    const sid = detectShiftForRow(r.tourStartTime || r.timestamp);
+    if (sid) {
+      shiftCounts[sid]++;
+      if (r.status === 'ผิดปกติ') shiftAbnormal[sid]++;
+    }
+  });
+
+  const maxCount = Math.max(...Object.values(shiftCounts), 1);
+  const grid = document.getElementById('shift-grid');
+  grid.innerHTML = SHIFTS.map(s => {
+    const cnt = shiftCounts[s.id];
+    const ab  = shiftAbnormal[s.id];
+    const cls = ab > 0 ? 'alert' : cnt > 0 ? 'active' : '';
+    return `<div class="shift-cell ${cls}" title="${s.label}: ${cnt} check-ins${ab>0?' ('+ab+' ผิดปกติ)':''}">
+      <div class="shift-label">${s.label}</div>
+      <div class="shift-time" style="font-size:9px;color:var(--muted);font-family:'IBM Plex Mono',monospace">${s.start}</div>
+      <div class="shift-count">${cnt}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('shift-date-tag').textContent = startDate;
+
+  // Mini bars
+  const bars = document.getElementById('shift-bars');
+  bars.innerHTML = SHIFTS.map(s => {
+    const cnt = shiftCounts[s.id];
+    const ab  = shiftAbnormal[s.id];
+    const pct = (cnt / maxCount) * 100;
+    return `<div class="mini-bar-wrap">
+      <div class="mini-bar-val">${cnt || ''}</div>
+      <div class="mini-bar ${ab>0?'has-alert':''}" style="height:${Math.max(pct,4)}%"></div>
+      <div class="mini-bar-lbl">${s.label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── ACTIVITY FEED ─────────────────────
+function renderActivity() {
+  const recent = ALL_ROWS.slice(0, 50);
+  document.getElementById('act-count-tag').textContent = recent.length;
+  const feed = document.getElementById('activity-feed');
+  if (!recent.length) {
+    feed.innerHTML = '<div class="empty-state"><div class="es-icon">⚡</div>ไม่มีข้อมูล</div>';
+    return;
+  }
+  feed.innerHTML = recent.map((r, i) => {
+    const isLast = i === recent.length - 1;
+    const tsStr = fmtTime(r.timestamp);
+    const ok = r.status !== 'ผิดปกติ';
+    return `<div class="act-item">
+      <div class="act-dot-wrap">
+        <div class="act-dot ${ok?'ok':'warn'}"></div>
+        ${!isLast ? '<div class="act-line"></div>' : ''}
+      </div>
+      <div class="act-content">
+        <div class="act-top">
+          <div class="act-cp">${r.checkpointName}</div>
+          <span class="act-badge ${ok?'ok':'warn'}">${ok?'✅ ปกติ':'⚠️ ผิดปกติ'}</span>
+          <div class="act-time">${tsStr}</div>
+        </div>
+        <div class="act-guard">👤 ${r.guardName} · ${r.tourId}</div>
+        ${r.notes ? `<div class="act-notes">📝 ${r.notes}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── CHECKPOINT STATUS ──────────────────
+function renderCPStatus() {
+  const cpMap = {};
+  ALL_ROWS.forEach(r => {
+    if (!cpMap[r.checkpointId]) cpMap[r.checkpointId] = { name: r.checkpointName, total:0, abnormal:0 };
+    cpMap[r.checkpointId].total++;
+    if (r.status === 'ผิดปกติ') cpMap[r.checkpointId].abnormal++;
+  });
+
+  const maxTotal = Math.max(...Object.values(cpMap).map(c => c.total), 1);
+  const cpList = document.getElementById('cp-status-list');
+  const keys = Object.keys(cpMap);
+  document.getElementById('cp-tag').textContent = keys.length + ' จุด';
+
+  if (!keys.length) {
+    cpList.innerHTML = '<div class="empty-state" style="padding:20px"><div class="es-icon">📍</div>ไม่มีข้อมูล</div>';
+    return;
+  }
+  cpList.innerHTML = keys.map((id, i) => {
+    const c = cpMap[id];
+    const pct = (c.total / maxTotal * 100).toFixed(0);
+    const fillCls = c.abnormal > 0 ? 'alert' : c.total > 0 ? '' : 'warn';
+    const dotCls  = c.abnormal > 0 ? 'warn' : 'ok';
+    return `<div class="cp-row">
+      <div class="cp-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="cp-info">
+        <div class="cp-name-t">${c.name}</div>
+        <div class="cp-bar-wrap"><div class="cp-bar-fill ${fillCls}" style="width:${pct}%"></div></div>
+        <div class="cp-loc-t">${c.total} ครั้ง${c.abnormal>0 ? ' · ⚠️ '+c.abnormal+' ผิดปกติ' : ''}</div>
+      </div>
+      <div class="cp-count-t">${c.total}</div>
+      <div class="cp-status-dot ${dotCls}"></div>
+    </div>`;
+  }).join('');
+}
+
+// ─── TABLE ────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('tbl-body');
+  document.getElementById('tbl-tag').textContent = ALL_ROWS.length + ' รายการ';
+
+  if (!ALL_ROWS.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">ไม่มีข้อมูล</td></tr>';
+    return;
+  }
+  tbody.innerHTML = ALL_ROWS.map((r, i) => {
+    const ok = r.status !== 'ผิดปกติ';
+    const gps = r.gpsLat && r.gpsLng
+      ? `<span class="td-mono" style="font-size:10px">${r.gpsLat}, ${r.gpsLng}</span>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+    const photo = r.photoUrl && r.photoUrl.startsWith('http')
+      ? `<span class="td-photo" onclick="openPhoto('${r.photoUrl}', '${escHtml(r.checkpointName)}')">📷 ดูรูป</span>`
+      : '<span style="color:var(--muted);font-size:11px">—</span>';
+    return `<tr>
+      <td class="td-mono" style="color:var(--muted)">${i+1}</td>
+      <td class="td-mono">${fmtTimeFull(r.timestamp)}</td>
+      <td class="td-mono" style="font-size:10px;color:var(--muted)">${r.tourId}</td>
+      <td><strong>${escHtml(r.checkpointName)}</strong><br><span style="color:var(--muted);font-size:10px">${r.checkpointId}</span></td>
+      <td>${escHtml(r.guardName)}</td>
+      <td><span class="td-badge ${ok?'ok':'warn'}">${ok?'✅ ปกติ':'⚠️ ผิดปกติ'}</span></td>
+      <td style="font-size:12px;color:${ok?'var(--muted)':'var(--red)'}">${escHtml(r.notes) || '—'}</td>
+      <td>${gps}</td>
+      <td>${photo}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── ACTIVE GUARDS ──────────────────
+function renderGuards(guardRes) {
+  const guards = guardRes && guardRes.guards ? guardRes.guards : [];
+  document.getElementById('guard-tag').textContent = guards.length;
+  const el = document.getElementById('guard-list');
+  if (!guards.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:20px"><div class="es-icon">🛡️</div>ไม่มียามออนไลน์</div>';
+    return;
+  }
+  el.innerHTML = guards.map(g => `
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--amber-dim);border:1px solid rgba(245,166,35,.3);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">
+        ${g.adminType==='SUPER_ADMIN'?'👑':'🛡️'}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700">${escHtml(g.userName)}</div>
+        <div style="font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace">${g.adminType} · เข้าระบบ ${fmtTime(g.loginTime)}</div>
+      </div>
+      <div class="cp-status-dot ok"></div>
+    </div>`).join('');
+}
+
+// ════════════════════════════════════════
+// EXPORT EXCEL
+// ════════════════════════════════════════
+function exportExcel() {
+  if (!ALL_ROWS.length) { showToast('ไม่มีข้อมูลที่จะ Export', 'error'); return; }
+
+  const startDate = document.getElementById('f-start').value;
+  const endDate   = document.getElementById('f-end').value;
+
+  // Build CSV (UTF-8 with BOM for Excel Thai support)
+  const headers = ['ลำดับ','วันที่','เวลา','รอบตรวจ','จุดตรวจ','รหัสจุด','ยาม','สถานะ','หมายเหตุ','GPS-Lat','GPS-Lng','มีรูป'];
+  const rows = ALL_ROWS.map((r, i) => {
+    const dt = new Date(r.timestamp);
+    const dateStr = dt.toLocaleDateString('th-TH');
+    const timeStr = dt.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+    return [
+      i+1, dateStr, timeStr, r.tourId,
+      r.checkpointName, r.checkpointId, r.guardName,
+      r.status, r.notes || '',
+      r.gpsLat || '', r.gpsLng || '',
+      r.photoUrl ? 'มี' : 'ไม่มี'
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+  });
+
+  const csv = '\uFEFF' + [headers.map(h=>`"${h}"`).join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `GuardTour_${startDate}_${endDate}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✅ Export ${ALL_ROWS.length} รายการเรียบร้อย`, 'success');
+}
+
+// ════════════════════════════════════════
+// PHOTO MODAL
+// ════════════════════════════════════════
+function openPhoto(url, cpName) {
+  document.getElementById('modal-img').src = url;
+  document.getElementById('modal-cp-name').textContent = cpName;
+  document.getElementById('photo-modal').classList.remove('hidden');
+}
+function closePhotoModal() {
+  document.getElementById('photo-modal').classList.add('hidden');
+  document.getElementById('modal-img').src = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePhotoModal(); });
+
+// ════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════
+function fmtTime(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+  } catch(_) { return '—'; }
+}
+function fmtTimeFull(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('th-TH', { day:'2-digit', month:'short' })
+      + ' ' + d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+  } catch(_) { return '—'; }
+}
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════
+function showToast(msg, type = 'info') {
+  const wrap = document.getElementById('toast-wrap');
+  const el   = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity='0'; el.style.transform='translateX(20px)'; el.style.transition='.3s'; setTimeout(() => el.remove(), 300); }, 3000);
+}
+</script>
+</body>
+</html>
